@@ -448,7 +448,13 @@ async fn main() -> anyhow::Result<()> {
                         cargo::ops::compile(&ws, &compile_options)?;
 
                         let raw_result = build_dir
-                            .join(format!("{}/{}/{}.{}", platform.target(), profile.name(), lib_name, platform.suffix()))
+                            .join(format!(
+                                "{}/{}/{}.{}",
+                                platform.target(),
+                                profile.name(),
+                                lib_name,
+                                platform.cargo_output_ext()
+                            ))
                             .to_str()
                             .unwrap()
                             .to_string();
