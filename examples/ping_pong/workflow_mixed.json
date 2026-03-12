@@ -1,0 +1,42 @@
+{
+    "functions": [
+        {
+            "name": "ponger",
+            "class_specification": {
+                "id": "pong",
+                "function_type": "RUST_NATIVE",
+                "version": "0.1",
+                "code": "../../functions/pong/pong.arm",
+                "outputs": [
+                    "ping"
+                ]
+            },
+            "output_mapping": {
+                "ping": "pinger"
+            },
+            "annotations": {
+                "label_match_all": "arm,linux"
+            }
+        },
+        {
+            "name": "pinger",
+            "class_specification": {
+                "id": "ping",
+                "function_type": "RUST_WASM",
+                "version": "0.1",
+                "code": "../../functions/ping/ping.wasm",
+                "outputs": [
+                    "ponger"
+                ]
+            },
+            "output_mapping": {
+                "ponger": "ponger"
+            },
+            "annotations": {
+                "label_match_all": "darwin"
+            }
+        }
+    ],
+    "resources": [],
+    "annotations": {}
+}
