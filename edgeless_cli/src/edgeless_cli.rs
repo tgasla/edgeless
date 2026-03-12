@@ -446,7 +446,7 @@ async fn main() -> anyhow::Result<()> {
                             Platform::WASM => println!(
                                 "{:?}",
                                 std::process::Command::new("wasm-opt")
-                                    .args(["-Oz", &raw_result, "-o", &out_file])
+                                    .args(["-Oz", "--enable-bulk-memory", &raw_result, "-o", &out_file])
                                     .status()?
                             ),
                             _ => println!(

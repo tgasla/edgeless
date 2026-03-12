@@ -76,7 +76,7 @@ macro_rules! export {
     };
 }
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(not(target_arch = "wasm32"))]
 #[macro_export]
 macro_rules! export {
     ( $fun:ident ) => {

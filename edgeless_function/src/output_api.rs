@@ -1,25 +1,25 @@
 // SPDX-FileCopyrightText: © 2024 Technical University of Munich, Chair of Connected Mobility
 // SPDX-License-Identifier: MIT
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(not(target_arch = "wasm32"))]
 use {
-    once_cell::sync::OnceCell,
     core::sync::atomic::{AtomicPtr, Ordering},
+    once_cell::sync::OnceCell,
 };
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(not(target_arch = "wasm32"))]
 static GUEST_API_HOST: OnceCell<AtomicPtr<usize>> = OnceCell::new();
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(not(target_arch = "wasm32"))]
 #[no_mangle]
 pub extern "C" fn set_guest_api_host_pointer(ptr: *const usize) {
     log::debug!("Setting the GUEST_API_HOST pointer to: {:p}", ptr);
-    
+
     let atomic_ptr = AtomicPtr::new(ptr as *mut usize);
     GUEST_API_HOST.set(atomic_ptr).unwrap();
 }
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(not(target_arch = "wasm32"))]
 fn get_guest_api_host_pointer() -> *const usize {
     let ptr = GUEST_API_HOST.get().expect("Guest API Host not set up");
     ptr.load(Ordering::SeqCst)
@@ -31,14 +31,13 @@ pub fn cast_raw(target: crate::InstanceId, msg: &[u8]) {
         crate::imports::cast_raw_asm(target.node_id.as_ptr(), target.component_id.as_ptr(), msg.as_ptr(), msg.len());
     }
 }
-#[cfg(target_arch = "x86_64")]
+#[cfg(not(target_arch = "wasm32"))]
 pub fn cast_raw(target: crate::InstanceId, msg: &[u8]) {
     unsafe {
         let ptr = get_guest_api_host_pointer();
         crate::imports::cast_raw_asm(ptr, target.node_id.as_ptr(), target.component_id.as_ptr(), msg.as_ptr(), msg.len());
     }
 }
-
 
 #[cfg(target_arch = "wasm32")]
 pub fn cast(name: &str, msg: &[u8]) {
@@ -47,14 +46,13 @@ pub fn cast(name: &str, msg: &[u8]) {
     }
 }
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(not(target_arch = "wasm32"))]
 pub fn cast(name: &str, msg: &[u8]) {
     unsafe {
         let ptr = get_guest_api_host_pointer();
         crate::imports::cast_asm(ptr, name.as_bytes().as_ptr(), name.as_bytes().len(), msg.as_ptr(), msg.len());
     }
 }
-
 
 #[cfg(target_arch = "wasm32")]
 pub fn delayed_cast(delay_ms: u64, name: &str, msg: &[u8]) {
@@ -63,7 +61,7 @@ pub fn delayed_cast(delay_ms: u64, name: &str, msg: &[u8]) {
     }
 }
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(not(target_arch = "wasm32"))]
 pub fn delayed_cast(delay_ms: u64, name: &str, msg: &[u8]) {
     unsafe {
         let ptr = get_guest_api_host_pointer();
@@ -94,7 +92,7 @@ pub fn call_raw(target: crate::InstanceId, msg: &[u8]) -> crate::CallRet {
     }
 }
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(not(target_arch = "wasm32"))]
 pub fn call_raw(target: crate::InstanceId, msg: &[u8]) -> crate::CallRet {
     unsafe {
         let ptr = get_guest_api_host_pointer();
@@ -119,7 +117,6 @@ pub fn call_raw(target: crate::InstanceId, msg: &[u8]) -> crate::CallRet {
     }
 }
 
-
 #[cfg(target_arch = "wasm32")]
 pub fn call(name: &str, msg: &[u8]) -> crate::CallRet {
     unsafe {
@@ -142,7 +139,7 @@ pub fn call(name: &str, msg: &[u8]) -> crate::CallRet {
     }
 }
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(not(target_arch = "wasm32"))]
 pub fn call(name: &str, msg: &[u8]) -> crate::CallRet {
     unsafe {
         let ptr = get_guest_api_host_pointer();
@@ -173,13 +170,13 @@ pub fn telemetry_log(level: usize, target: &str, msg: &str) {
     }
 }
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(not(target_arch = "wasm32"))]
 pub fn telemetry_log(level: usize, target: &str, msg: &str) {
     unsafe {
         let ptr = get_guest_api_host_pointer();
 
         crate::imports::telemetry_log_asm(
-            ptr, 
+            ptr,
             level,
             target.as_bytes().as_ptr(),
             target.as_bytes().len(),
@@ -188,7 +185,6 @@ pub fn telemetry_log(level: usize, target: &str, msg: &str) {
         );
     }
 }
-
 
 #[cfg(target_arch = "wasm32")]
 pub fn slf() -> crate::InstanceId {
@@ -202,7 +198,7 @@ pub fn slf() -> crate::InstanceId {
     }
 }
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(not(target_arch = "wasm32"))]
 pub fn slf() -> crate::InstanceId {
     unsafe {
         let ptr = get_guest_api_host_pointer();
@@ -215,7 +211,6 @@ pub fn slf() -> crate::InstanceId {
     }
 }
 
-
 #[cfg(target_arch = "wasm32")]
 pub fn sync(state: &[u8]) {
     unsafe {
@@ -223,7 +218,7 @@ pub fn sync(state: &[u8]) {
     }
 }
 
-#[cfg(target_arch = "x86_64")]
+#[cfg(not(target_arch = "wasm32"))]
 pub fn sync(state: &[u8]) {
     unsafe {
         let ptr = get_guest_api_host_pointer();
