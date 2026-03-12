@@ -156,6 +156,15 @@ impl Platform {
         }
     }
 
+    /// The file extension cargo actually produces (e.g. `.so` on Linux).
+    fn cargo_output_ext(&self) -> String {
+        match self {
+            Self::WASM => String::from("wasm"),
+            Self::X86 => String::from("so"),
+            Self::ARM => String::from("so"),
+        }
+    }
+
     fn name(&self) -> String {
         match self {
             Self::WASM => String::from("WASM"),
@@ -316,7 +325,11 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
             Commands::Function { function_command } => match function_command {
-                FunctionCommands::Build { spec_file, architecture, build_profile } => {
+                FunctionCommands::Build {
+                    spec_file,
+                    architecture,
+                    build_profile,
+                } => {
                     let spec_file_path = std::fs::canonicalize(std::path::PathBuf::from(spec_file.clone()))?;
                     let cargo_project_path = spec_file_path.parent().unwrap().to_path_buf();
                     let cargo_manifest = cargo_project_path.join("Cargo.toml");
@@ -327,7 +340,7 @@ async fn main() -> anyhow::Result<()> {
                     let context = GlobalContext::default().expect("Could not construct a global context for the workspace");
                     let mut ws = cargo::core::Workspace::new(&cargo_manifest, &context)?;
                     ws.set_target_dir(cargo::util::Filesystem::new(build_dir.clone()));
-                    
+
                     let platform = Platform::from_string(architecture.as_str());
                     let pack = ws.current()?;
 
@@ -339,7 +352,7 @@ async fn main() -> anyhow::Result<()> {
                     };
 
                     let raw_result = build_dir
-                        .join(format!("{}/release/lib{}.{}", platform.target(), lib_name, platform.suffix()))
+                        .join(format!("{}/release/lib{}.{}", platform.target(), lib_name, platform.cargo_output_ext()))
                         .to_str()
                         .unwrap()
                         .to_string();
@@ -347,7 +360,7 @@ async fn main() -> anyhow::Result<()> {
                         .join(format!("{}.{}", function_spec.id, platform.suffix()))
                         .to_str()
                         .unwrap()
-                        .to_string(); 
+                        .to_string();
 
                     // check if function.json, Cargo.toml, Cargo.lock or src/
                     // have been modified since the last time the function has
@@ -384,16 +397,21 @@ async fn main() -> anyhow::Result<()> {
                         } else {
                             log::info!("Building the function for the first time.")
                         }
-                        
+
                         let profile = BuildProfile::from_string(build_profile.as_str());
 
-                        println!("Building profile {} for architecture {} using {} target.", profile.name(), platform.name(), platform.target());
+                        println!(
+                            "Building profile {} for architecture {} using {} target.",
+                            profile.name(),
+                            platform.name(),
+                            platform.target()
+                        );
 
                         let lib_name = match pack.library() {
                             Some(val) => match platform {
                                 Platform::WASM => val.name().to_string(),
-                                _ => format!("lib{}", val.name()), 
-                            }
+                                _ => format!("lib{}", val.name()),
+                            },
                             None => {
                                 return Err(anyhow::anyhow!("Cargo package does not contain library."));
                             }
@@ -434,13 +452,13 @@ async fn main() -> anyhow::Result<()> {
                             .to_str()
                             .unwrap()
                             .to_string();
-               
+
                         let out_file = cargo_project_path
                             .join(format!("{}.{}", function_spec.id, platform.suffix()))
                             .to_str()
                             .unwrap()
                             .to_string();
-                        println!("src {} dst {}", raw_result, out_file); 
+                        println!("src {} dst {}", raw_result, out_file);
 
                         match platform {
                             Platform::WASM => println!(
@@ -449,10 +467,7 @@ async fn main() -> anyhow::Result<()> {
                                     .args(["-Oz", "--enable-bulk-memory", &raw_result, "-o", &out_file])
                                     .status()?
                             ),
-                            _ => println!(
-                                "{:?}",
-                                std::fs::copy(&raw_result, out_file)?
-                            ),
+                            _ => println!("{:?}", std::fs::copy(&raw_result, out_file)?),
                         }
                     }
                 }
