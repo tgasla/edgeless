@@ -4,12 +4,10 @@ use edgeless_function::*;
 struct AIEngine;
 
 impl EdgeFunction for AIEngine {
-    fn handle_init(payload: Option<&[u8]>, init_metadata: Option<&[u8]>) {
+    fn handle_init(_payload: Option<&[u8]>, _init_metadata: Option<&[u8]>) {
+        edgeless_function::init_logger();
         log::info!("AI Engine: Initialized");
-        // Initialize CUDA device for Candle
-        // Since we don't have &mut self, we cannot mutate self here. The state must be interior mutable if needed.
-        // For now, let's keep it simple.
-        log::info!("AI Engine: Utilizing Device: CUDA");
+        log::info!("AI Engine: Will use CUDA if available, CPU fallback");
     }
 
     fn handle_cast(src: edgeless_function::InstanceId, msg: &[u8]) {
@@ -18,6 +16,7 @@ impl EdgeFunction for AIEngine {
         
         // Re-initialize device locally since self isn't mutable
         let device = Device::new_cuda(0).unwrap_or(Device::Cpu);
+        log::info!("AI Engine: Using device: {:?}", device);
         
         let frame_data = std::str::from_utf8(msg).unwrap_or("");
         log::info!("Processing Prompt Payload: {}", frame_data);
