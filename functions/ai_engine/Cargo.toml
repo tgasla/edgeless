@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 [dependencies]
 edgeless_function = { path = "../../edgeless_function" }
 candle-core = { version = "0.9.2", features = ["cuda"] }
-image = { version = "0.25", default-features = false, features = ["png"] }
+image = { version = "0.24", default-features = false, features = ["png"] }
 log = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

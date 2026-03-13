@@ -4,7 +4,12 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 struct Visualizer;
 
-static FRAME_COUNTER: AtomicU32 = AtomicU32::new(0);
+/// Must match the struct in ai_engine
+#[derive(serde::Deserialize)]
+struct ImagePayload {
+    frame_id: u32,
+    png_data: Vec<u8>,
+}
 
 impl EdgeFunction for Visualizer {
     fn handle_init(_payload: Option<&[u8]>, _init_metadata: Option<&[u8]>) {
@@ -13,32 +18,43 @@ impl EdgeFunction for Visualizer {
     }
 
     fn handle_cast(_src: InstanceId, msg: &[u8]) {
-        let frame_num = FRAME_COUNTER.fetch_add(1, Ordering::SeqCst);
-        log::info!("Visualizer: Received frame {} ({} bytes), uploading via HTTP", frame_num, msg.len());
+        let msg_str = core::str::from_utf8(msg).unwrap_or("");
+
+        // Parse the ImagePayload JSON from ai_engine
+        let payload: ImagePayload = match serde_json::from_str(msg_str) {
+            Ok(p) => p,
+            Err(e) => {
+                log::info!("Visualizer: Failed to parse image payload: {}", e);
+                return;
+            }
+        };
+
+        log::info!("Visualizer: Received frame {} ({} PNG bytes), uploading via HTTP",
+            payload.frame_id, payload.png_data.len());
 
         // POST the PNG bytes to a local file-saving HTTP server
         let http_req = edgeless_http::EdgelessHTTPRequest {
             protocol: edgeless_http::EdgelessHTTPProtocol::HTTP,
             host: "127.0.0.1:8081".to_string(),
-            path: format!("/save/frame_{:04}.png", frame_num),
+            path: format!("/save/frame_{:04}.png", payload.frame_id),
             method: edgeless_http::EdgelessHTTPMethod::Post,
             headers: std::collections::HashMap::from([
                 ("Content-Type".to_string(), "image/png".to_string()),
             ]),
-            body: Some(msg.to_vec()),
+            body: Some(payload.png_data),
         };
 
         let response = call("http_out", edgeless_http::request_to_string(&http_req).as_bytes());
 
         match response {
-            CallRet::Reply(resp_bytes) => {
-                log::info!("Visualizer: Frame {} saved successfully", frame_num);
+            CallRet::Reply(_) => {
+                log::info!("Visualizer: Frame {} saved successfully", payload.frame_id);
             }
             CallRet::NoReply => {
-                log::info!("Visualizer: No reply when saving frame {}", frame_num);
+                log::info!("Visualizer: No reply when saving frame {}", payload.frame_id);
             }
             CallRet::Err => {
-                log::info!("Visualizer: Error saving frame {}", frame_num);
+                log::info!("Visualizer: Error saving frame {}", payload.frame_id);
             }
         }
     }

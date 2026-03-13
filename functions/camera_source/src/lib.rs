@@ -21,7 +21,6 @@ impl EdgeFunction for CameraSource {
             log::info!("Camera Source: Fetching frame {} from HTTP server", frame_num);
 
             // Use http-egress to fetch an image from a local HTTP file server
-            // Run on Macbook: python3 -m http.server 8080 --directory /path/to/images
             let http_req = edgeless_http::EdgelessHTTPRequest {
                 protocol: edgeless_http::EdgelessHTTPProtocol::HTTP,
                 host: "127.0.0.1:8080".to_string(),
@@ -35,23 +34,24 @@ impl EdgeFunction for CameraSource {
 
             match response {
                 CallRet::Reply(resp_bytes) => {
-                    let parsed = edgeless_http::response_from_string(
-                        core::str::from_utf8(&resp_bytes).unwrap_or("")
-                    );
-                    match parsed {
+                    // The response is already a JSON-serialized HTTP response string.
+                    // Forward it directly to ai_engine — do NOT extract binary body,
+                    // because the WASM runtime requires all cast payloads to be valid UTF-8.
+                    let resp_str = core::str::from_utf8(&resp_bytes).unwrap_or("");
+                    
+                    // Quick check: parse just to verify status
+                    match edgeless_http::response_from_string(resp_str) {
                         Ok(http_resp) => {
                             if http_resp.status == 200 {
-                                if let Some(body) = http_resp.body {
-                                    log::info!("Camera Source: Got image frame {} ({} bytes), sending to AI Engine", frame_num, body.len());
-                                    cast("raw_image_channel", &body);
-                                } else {
-                                    log::info!("Camera Source: Empty body in HTTP response");
-                                }
+                                let body_len = http_resp.body.as_ref().map(|b| b.len()).unwrap_or(0);
+                                log::info!("Camera Source: Got image frame {} ({} body bytes), forwarding to AI Engine", frame_num, body_len);
+                                // Forward the full serialized HTTP response as UTF-8 string
+                                cast("raw_image_channel", resp_str.as_bytes());
                             } else {
                                 log::info!("Camera Source: HTTP error status {}", http_resp.status);
                             }
                         }
-                        Err(e) => {
+                        Err(_) => {
                             log::info!("Camera Source: Failed to parse HTTP response");
                         }
                     }
