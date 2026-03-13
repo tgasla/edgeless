@@ -1,9 +1,7 @@
 use candle_core::{Device, Tensor};
 use edgeless_function::*;
 
-struct AIEngine {
-    device: Device,
-}
+struct AIEngine;
 
 impl EdgeFunction for AIEngine {
     fn handle_init(payload: Option<&[u8]>, init_metadata: Option<&[u8]>) {
@@ -64,6 +62,4 @@ impl EdgeFunction for AIEngine {
     fn handle_stop() {}
 }
 
-edgeless_function::export!(AIEngine {
-    device: Device::Cpu
-});
+edgeless_function::export!(AIEngine);
