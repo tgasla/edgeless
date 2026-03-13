@@ -3,7 +3,7 @@ use candle_nn::VarBuilder;
 use candle_transformers::models::depth_anything_v2::{DepthAnythingV2, DepthAnythingV2Config};
 use candle_transformers::models::dinov2;
 use edgeless_function::*;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex};
 
 struct AIEngine;
 
@@ -20,7 +20,12 @@ struct ModelState {
     device: Device,
 }
 
-static MODEL: OnceLock<ModelState> = OnceLock::new();
+// DepthAnythingV2 contains Box<dyn Module> which isn't Sync.
+// The edgeless runtime calls handle_cast sequentially, so this is safe.
+unsafe impl Send for ModelState {}
+unsafe impl Sync for ModelState {}
+
+static MODEL: Mutex<Option<ModelState>> = Mutex::new(None);
 static FRAME_COUNTER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
 const DINO_IMG_SIZE: usize = 518;
@@ -99,14 +104,15 @@ impl EdgeFunction for AIEngine {
             .expect("Failed to build Depth Anything V2");
         log::info!("AI Engine: Depth Anything V2 model ready!");
 
-        MODEL.set(ModelState { model, device }).ok();
+        *MODEL.lock().unwrap() = Some(ModelState { model, device });
     }
 
     fn handle_cast(_src: InstanceId, msg: &[u8]) {
         let frame_id = FRAME_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         log::info!("AI Engine: Frame {} ({} bytes received)", frame_id, msg.len());
 
-        let state = match MODEL.get() {
+        let guard = MODEL.lock().unwrap();
+        let state = match guard.as_ref() {
             Some(s) => s,
             None => {
                 log::error!("AI Engine: Model not initialized!");
