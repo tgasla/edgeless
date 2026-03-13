@@ -1,0 +1,56 @@
+{
+    "functions": [
+        {
+            "name": "camera_source",
+            "class_specification": {
+                "id": "camera_source",
+                "function_type": "RUST_WASM",
+                "version": "0.1",
+                "code": "../../functions/camera_source/camera_source.wasm",
+                "outputs": [
+                    "raw_image_channel"
+                ]
+            },
+            "output_mapping": {
+                "raw_image_channel": "ai_engine"
+            },
+            "annotations": {
+                "label_match_all": "darwin"
+            }
+        },
+        {
+            "name": "ai_engine",
+            "class_specification": {
+                "id": "ai_engine",
+                "function_type": "RUST_NATIVE",
+                "version": "0.1",
+                "code": "../../functions/ai_engine/ai_engine.arm",
+                "outputs": [
+                    "transformed_image_channel"
+                ]
+            },
+            "output_mapping": {
+                "transformed_image_channel": "visualizer"
+            },
+            "annotations": {
+                "label_match_all": "linux,arm"
+            }
+        },
+        {
+            "name": "visualizer",
+            "class_specification": {
+                "id": "visualizer",
+                "function_type": "RUST_WASM",
+                "version": "0.1",
+                "code": "../../functions/visualizer/visualizer.wasm",
+                "outputs": []
+            },
+            "output_mapping": {},
+            "annotations": {
+                "label_match_all": "darwin"
+            }
+        }
+    ],
+    "resources": [],
+    "annotations": {}
+}

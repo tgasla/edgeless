@@ -6,4 +6,12 @@ rustflags = ["-C", "link-args=-rdynamic"]
 linker = "aarch64-linux-gnu-gcc"
 rustflags = ["-C", "link-args=-rdynamic"]
 
+# [target.aarch64-apple-darwin]
+# linker = "clang"
+# rustflags = ["-C", "link-args=-dynamiclib"]
+
+# [target.x86_64-apple-darwin]
+# linker = "clang"
+# rustflags = ["-C", "link-args=-dynamiclib"]
+
 [env]
