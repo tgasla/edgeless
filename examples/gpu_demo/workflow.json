@@ -1,0 +1,38 @@
+{
+    "functions": [
+        {
+            "name": "gpu_worker_node",
+            "class_specification": {
+                "id": "gpu_worker",
+                "function_type": "RUST_NATIVE",
+                "version": "0.1",
+                "code": "../../functions/gpu_worker/gpu_worker.so",
+                "outputs": []
+            },
+            "output_mapping": {},
+            "annotations": {
+                "label_match_all": "linux,arm"
+            }
+        },
+        {
+            "name": "gpu_client_node",
+            "class_specification": {
+                "id": "gpu_client",
+                "function_type": "RUST_WASM",
+                "version": "0.1",
+                "code": "../../functions/gpu_client/gpu_client.wasm",
+                "outputs": [
+                    "worker"
+                ]
+            },
+            "output_mapping": {
+                "worker": "gpu_worker_node"
+            },
+            "annotations": {
+                "label_match_all": "darwin"
+            }
+        }
+    ],
+    "resources": [],
+    "annotations": {}
+}
