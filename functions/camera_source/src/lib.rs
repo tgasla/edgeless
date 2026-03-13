@@ -3,33 +3,28 @@ use edgeless_function::*;
 struct CameraSource;
 
 impl EdgeFunction for CameraSource {
-    fn handle_init(payload: Option<&[u8]>, init_metadata: Option<&[u8]>) {
+    fn handle_init(payload: Option<&[u8]>, _init_metadata: Option<&[u8]>) {
+        edgeless_function::init_logger();
         log::info!("Camera Source: Initialized");
-        // Start streaming frames. In a real scenario, this would interact with
-        // an ingress resource attached to host hardware. For this demo,
-        // we can cast periodic requests or simulate streaming.
-        edgeless_function::delayed_cast(
-            1000,
-            "raw_image_channel",
-            b"SIMULATED_FRAME_START",
-        );
+        // Kick off the frame capture loop by sending a delayed message to ourselves
+        edgeless_function::delayed_cast(1000, "self", b"capture");
     }
 
-    fn handle_cast(src: edgeless_function::InstanceId, msg: &[u8]) {
-        // If it's our own simulation loop, cast and schedule the next
-        log::info!("Camera Source: capturing sending frame to AI Engine");
+    fn handle_cast(_src: edgeless_function::InstanceId, msg: &[u8]) {
+        let str_message = core::str::from_utf8(msg).unwrap_or("");
         
-        let prompt = "A cyberpunk city street at night";
-        let payload = format!("{{\"prompt\": \"{}\", \"image\": \"...\"}}", prompt);
-        
-        edgeless_function::cast("raw_image_channel", payload.as_bytes());
-        
-        // Loop simulation
-        edgeless_function::delayed_cast(
-            1000,
-            "raw_image_channel",
-            b"SIMULATED_FRAME_START",
-        );
+        if str_message == "capture" {
+            log::info!("Camera Source: Capturing frame, sending to AI Engine");
+            
+            let prompt = "A cyberpunk city street at night";
+            let payload = format!("{{\"prompt\": \"{}\", \"image\": \"SIMULATED_RAW_FRAME_DATA\"}}", prompt);
+            
+            // Send the frame to the ai_engine via the output channel
+            edgeless_function::cast("raw_image_channel", payload.as_bytes());
+            
+            // Schedule the next frame capture (loop back to ourselves)
+            edgeless_function::delayed_cast(1000, "self", b"capture");
+        }
     }
 
     fn handle_call(
