@@ -8,11 +8,13 @@
                 "version": "0.1",
                 "code": "../../functions/camera_source/camera_source.wasm",
                 "outputs": [
-                    "raw_image_channel"
+                    "raw_image_channel",
+                    "http_e"
                 ]
             },
             "output_mapping": {
-                "raw_image_channel": "ai_engine"
+                "raw_image_channel": "ai_engine",
+                "http_e": "image-fetcher"
             },
             "annotations": {
                 "label_match_all": "darwin"
@@ -43,14 +45,31 @@
                 "function_type": "RUST_WASM",
                 "version": "0.1",
                 "code": "../../functions/visualizer/visualizer.wasm",
-                "outputs": []
+                "outputs": [
+                    "http_out"
+                ]
             },
-            "output_mapping": {},
+            "output_mapping": {
+                "http_out": "image-saver"
+            },
             "annotations": {
                 "label_match_all": "darwin"
             }
         }
     ],
-    "resources": [],
+    "resources": [
+        {
+            "name": "image-fetcher",
+            "class_type": "http-egress",
+            "output_mapping": {},
+            "configurations": {}
+        },
+        {
+            "name": "image-saver",
+            "class_type": "http-egress",
+            "output_mapping": {},
+            "configurations": {}
+        }
+    ],
     "annotations": {}
 }

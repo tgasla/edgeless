@@ -1,0 +1,48 @@
+{
+    "functions": [
+        {
+            "name": "sensor_simulator",
+            "class_specification": {
+                "id": "sensor_simulator",
+                "function_type": "RUST_WASM",
+                "version": "0.1",
+                "code": "../../functions/sensor_simulator/sensor_simulator.wasm",
+                "outputs": [
+                    "output"
+                ]
+            },
+            "output_mapping": {
+                "output": "gpu_function"
+            },
+            "annotations": {
+                "init-payload": "period=1000,min-value=-10,max-value=10,seed=42"
+            }
+        },
+        {
+            "name": "gpu_function",
+            "class_specification": {
+                "id": "gpu_function",
+                "function_type": "CONTAINER",
+                "version": "0.1",
+                "code": "container:edgeless-gpu-function:latest",
+                "outputs": []
+            },
+            "output_mapping": {
+                "output": "my-log"
+            },
+            "annotations": {}
+        }
+    ],
+    "resources": [
+        {
+            "name": "my-log",
+            "class_type": "file-log",
+            "output_mapping": {},
+            "configurations": {
+                "filename": "gpu-output.log",
+                "add-timestamp": "true"
+            }
+        }
+    ],
+    "annotations": {}
+}

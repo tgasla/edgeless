@@ -2,8 +2,8 @@
     "function_type": "RUST_WASM",
     "id": "camera_source",
     "version": "0.1",
-    "build": "Cargo.toml",
     "outputs": [
-        "raw_image_channel"
+        "raw_image_channel",
+        "http_e"
     ]
 }
