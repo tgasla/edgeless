@@ -1,3 +1,5 @@
+[workspace]
+
 [package]
 name = "ai_engine"
 version = "0.1.0"
