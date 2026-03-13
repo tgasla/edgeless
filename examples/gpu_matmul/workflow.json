@@ -6,7 +6,7 @@
                 "id": "gpu_worker",
                 "function_type": "RUST_NATIVE",
                 "version": "0.1",
-                "code": "../../functions/gpu_worker/gpu_worker.so",
+                "code": "../../functions/gpu_worker/gpu_worker.arm",
                 "outputs": []
             },
             "output_mapping": {},

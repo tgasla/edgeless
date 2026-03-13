@@ -3,20 +3,19 @@ use edgeless_function::*;
 struct CameraSource;
 
 impl EdgeFunction for CameraSource {
-    fn handle_init(&mut self, payload: Option<&[u8]>, init_metadata: Option<edgeless_function::InitMetadata>) {
+    fn handle_init(payload: Option<&[u8]>, init_metadata: Option<&[u8]>) {
         log::info!("Camera Source: Initialized");
         // Start streaming frames. In a real scenario, this would interact with
         // an ingress resource attached to host hardware. For this demo,
         // we can cast periodic requests or simulate streaming.
         edgeless_function::delayed_cast(
-            edgeless_function::InstanceId::none(),
+            1000,
             "raw_image_channel",
             b"SIMULATED_FRAME_START",
-            1000,
         );
     }
 
-    fn handle_cast(&mut self, src: edgeless_function::InstanceId, msg: &[u8]) {
+    fn handle_cast(src: edgeless_function::InstanceId, msg: &[u8]) {
         // If it's our own simulation loop, cast and schedule the next
         log::info!("Camera Source: capturing sending frame to AI Engine");
         
@@ -27,20 +26,20 @@ impl EdgeFunction for CameraSource {
         
         // Loop simulation
         edgeless_function::delayed_cast(
-            edgeless_function::InstanceId::none(),
-            "raw_image_channel", // Here, we could cast to self if we had an output mapped to ourselves, or handle it via external timer.
-            b"SIMULATED_FRAME_START",
             1000,
+            "raw_image_channel",
+            b"SIMULATED_FRAME_START",
         );
     }
 
     fn handle_call(
-        &mut self,
         _src: edgeless_function::InstanceId,
         _msg: &[u8],
     ) -> edgeless_function::CallRet {
         edgeless_function::CallRet::NoReply
     }
+    
+    fn handle_stop() {}
 }
 
 edgeless_function::export!(CameraSource);

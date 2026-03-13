@@ -2,5 +2,6 @@
     "id": "gpu_worker",
     "version": "0.1",
     "function_type": "RUST_NATIVE",
+    "build": "Cargo.toml",
     "outputs": []
 }
