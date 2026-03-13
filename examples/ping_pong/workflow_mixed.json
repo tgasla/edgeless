@@ -15,7 +15,7 @@
                 "ping": "pinger"
             },
             "annotations": {
-                "label_match_all": "arm,linux"
+                "label_match_all": "linux"
             }
         },
         {
