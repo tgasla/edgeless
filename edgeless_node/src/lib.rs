@@ -54,7 +54,7 @@ pub struct EdgelessNodeTelemetrySettings {
 impl Default for EdgelessNodeTelemetrySettings {
     fn default() -> Self {
         Self {
-            metrics_url: String::from("http://127.0.0.1:7007"),
+            metrics_url: String::from("http://127.0.0.1:7006"),
             performance_samples: false,
         }
     }
@@ -119,13 +119,13 @@ impl Default for EdgelessNodeGeneralSettings {
     fn default() -> Self {
         Self {
             node_id: uuid::Uuid::new_v4(),
-            agent_url: String::from("http://127.0.0.1:7005"),
-            agent_url_announced: String::from("http://127.0.0.1:7005"),
-            invocation_url: String::from("http://127.0.0.1:7006"),
-            invocation_url_announced: String::from("http://127.0.0.1:7006"),
+            agent_url: String::from("http://127.0.0.1:7004"),
+            agent_url_announced: String::from("http://127.0.0.1:7004"),
+            invocation_url: String::from("http://127.0.0.1:7005"),
+            invocation_url_announced: String::from("http://127.0.0.1:7005"),
             invocation_url_coap: None,
             invocation_url_announced_coap: None,
-            node_register_url: String::from("http://127.0.0.1:7004"),
+            node_register_url: String::from("http://127.0.0.1:7003"),
             subscription_refresh_interval_sec: 2,
         }
     }

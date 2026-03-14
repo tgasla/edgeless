@@ -17,7 +17,7 @@
                 "http_e": "image-fetcher"
             },
             "annotations": {
-                "label_match_all": "darwin"
+                "label_match_all": "os=darwin"
             }
         },
         {
@@ -35,7 +35,7 @@
                 "transformed_image_channel": "visualizer"
             },
             "annotations": {
-                "label_match_all": "linux,arm"
+                "label_match_all": "os=linux,arch=arm"
             }
         },
         {
@@ -53,7 +53,7 @@
                 "http_out": "image-saver"
             },
             "annotations": {
-                "label_match_all": "darwin"
+                "label_match_all": "os=darwin"
             }
         }
     ],

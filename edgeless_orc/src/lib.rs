@@ -207,9 +207,9 @@ pub fn edgeless_orc_default_conf() -> String {
             domain_register_url: String::from("http://127.0.0.1:7002"),
             subscription_refresh_interval_sec: 2,
             domain_id: String::from("domain-7000"),
-            orchestrator_url: String::from("http://127.0.0.1:7003"),
-            orchestrator_url_announced: String::from("http://127.0.0.1:7003"),
-            node_register_url: String::from("http://127.0.0.1:7004"),
+            orchestrator_url: String::from("http://127.0.0.1:7000"),
+            orchestrator_url_announced: String::from("http://127.0.0.1:7000"),
+            node_register_url: String::from("http://127.0.0.1:7003"),
             node_register_coap_url: None,
         },
         baseline: EdgelessOrcBaselineSettings {
