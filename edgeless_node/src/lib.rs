@@ -852,6 +852,7 @@ pub async fn edgeless_node_main(settings: EdgelessNodeSettings) {
                         container_runtime.clone(),
                     );
                 runners.insert("CONTAINER".to_string(), Box::new(container_runtime_client.clone()));
+                runners_ft.insert(edgeless_api::function_instance::FunctionType::Container, Box::new(container_runtime_client.clone()));
                 tokio::spawn(async move {
                     futures::join!(container_runtime_task_s.run(), container_runtime_task, server_task);
                 })
@@ -874,8 +875,8 @@ pub async fn edgeless_node_main(settings: EdgelessNodeSettings) {
                         data_plane.clone(),
                         state_manager.clone(),
                         Box::new(telemetry_provider.get_handle(std::collections::BTreeMap::from([
-                            ("FUNCTION_TYPE".to_string(), "RUST_NATIVE".to_string()),
-                            ("NATIVE_RUNTIME".to_string(), "native".to_string()),
+                            ("FUNCTION_TYPE".to_string(), "NATIVE".to_string()),
+                            ("ARCH".to_string(), std::env::consts::ARCH.to_string()),
                             ("NODE_ID".to_string(), settings.general.node_id.to_string()),
                         ]))),
                         std::sync::Arc::new(tokio::sync::Mutex::new(Box::new(crate::native_runner::runtime::NativeRuntime::new()))),
@@ -886,8 +887,19 @@ pub async fn edgeless_node_main(settings: EdgelessNodeSettings) {
                         //function.function_instance.native_runtime_api = native_runtime_api;
                     } */
 
-                    runners.insert("RUST_NATIVE".to_string(), Box::new(native_runtime_client.clone()));
-                    runners_ft.insert(edgeless_api::function_instance::FunctionType::from_string("RUST_NATIVE"), Box::new(native_runtime_client.clone()));
+                    match std::env::consts::ARCH {
+                        "x86_64" => {
+                            runners.insert("RUST_X86".to_string(), Box::new(native_runtime_client.clone()));
+                            runners_ft.insert(edgeless_api::function_instance::FunctionType::RustX86_64, Box::new(native_runtime_client.clone()));
+                        }
+                        "aarch64" => {
+                            runners.insert("RUST_ARM".to_string(), Box::new(native_runtime_client.clone()));
+                            runners_ft.insert(edgeless_api::function_instance::FunctionType::RustAarch64, Box::new(native_runtime_client.clone()));
+                        }
+                        arch => {
+                            log::warn!("Unknown architecture: {}, native runner registration skipped", arch);
+                        }
+                    }
                     tokio::spawn(async move{
                         native_runtime_task_s.run().await;
                     })

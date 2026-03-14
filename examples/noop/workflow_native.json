@@ -4,7 +4,7 @@
             "name": "noop",
             "class_specification": {
                 "id": "noop",
-                "function_type": "RUST_NATIVE",
+                "function_type": "RUST_X86",
                 "version": "0.1",
                 "code": "../../functions/noop/noop.so",
                 "outputs": []

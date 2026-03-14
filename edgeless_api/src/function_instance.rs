@@ -21,6 +21,7 @@ pub enum FunctionType {
     RustWasm,
     RustX86_64,
     RustAarch64,
+    Container,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -92,6 +93,7 @@ impl FunctionType {
             "RUST_WASM" => Self::RustWasm,
             "RUST_X86" => Self::RustX86_64,
             "RUST_ARM" => Self::RustAarch64,
+            "CONTAINER" => Self::Container,
             _ => Self::RustWasm,
         }
     }

@@ -4,9 +4,9 @@
             "name": "gpu_worker_node",
             "class_specification": {
                 "id": "gpu_worker",
-                "function_type": "RUST_NATIVE",
+                "function_type": "RUST_ARM",
                 "version": "0.1",
-                "code": "../../functions/gpu_worker/gpu_worker.arm",
+                "code": "../../functions/gpu_worker/gpu_worker_aarch.so",
                 "outputs": []
             },
             "output_mapping": {},

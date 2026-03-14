@@ -1,5 +1,5 @@
 {
-    "function_type": "RUST_NATIVE",
+    "function_type": "RUST_WASM",
     "id": "ai_engine",
     "version": "0.1",
     "outputs": [

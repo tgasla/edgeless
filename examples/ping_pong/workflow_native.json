@@ -4,7 +4,7 @@
             "name": "ponger",
             "class_specification": {
                 "id": "pong",
-                "function_type": "RUST_NATIVE",
+                "function_type": "RUST_X86",
                 "version": "0.1",
                 "code": "../../functions/pong/pong.so",
                 "outputs": [
@@ -15,14 +15,14 @@
                 "ping": "pinger"
             },
             "annotations": {
-              "init-payload": "ponger"
+                "init-payload": "ponger"
             }
         },
         {
             "name": "pinger",
             "class_specification": {
                 "id": "ping",
-                "function_type": "RUST_NATIVE",
+                "function_type": "RUST_X86",
                 "version": "0.1",
                 "code": "../../functions/ping/ping.so",
                 "outputs": [
@@ -33,7 +33,7 @@
                 "ponger": "ponger"
             },
             "annotations": {
-              "init-payload": "pinger"
+                "init-payload": "pinger"
             }
         }
     ],

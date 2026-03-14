@@ -4,9 +4,9 @@
             "name": "ponger",
             "class_specification": {
                 "id": "pong",
-                "function_type": "RUST_NATIVE",
+                "function_type": "RUST_ARM",
                 "version": "0.1",
-                "code": "../../functions/pong/pong.arm",
+                "code": "../../functions/pong/pong_aarch.so",
                 "outputs": [
                     "ping"
                 ]

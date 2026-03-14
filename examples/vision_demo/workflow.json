@@ -24,9 +24,9 @@
             "name": "ai_engine",
             "class_specification": {
                 "id": "ai_engine",
-                "function_type": "RUST_NATIVE",
+                "function_type": "RUST_ARM",
                 "version": "0.1",
-                "code": "../../functions/ai_engine/ai_engine.arm",
+                "code": "../../functions/ai_engine/ai_engine_aarch.so",
                 "outputs": [
                     "transformed_image_channel"
                 ]
