@@ -115,6 +115,89 @@ struct FunctionRepositoryConfig {
     pub api_key: String,
 }
 
+enum Platform {
+    WASM,
+    X86,
+    ARM,
+    MAC_ARM,
+    MAC_X86,
+}
+
+impl Platform {
+    fn target(&self) -> String {
+        match self {
+            Self::WASM => String::from("wasm32-unknown-unknown"),
+            Self::X86 => String::from("x86_64-unknown-linux-gnu"),
+            Self::ARM => String::from("aarch64-unknown-linux-gnu"),
+            Self::MAC_ARM => String::from("aarch64-apple-darwin"),
+            Self::MAC_X86 => String::from("x86_64-apple-darwin"),
+        }
+    }
+
+    fn out_file_name(&self, id: &str) -> String {
+        match self {
+            Self::WASM => format!("{}.wasm", id),
+            Self::X86 => format!("{}_x86.so", id),
+            Self::ARM => format!("{}_aarch.so", id),
+            Self::MAC_ARM => format!("{}_aarch.dylib", id),
+            Self::MAC_X86 => format!("{}_x86.dylib", id),
+        }
+    }
+
+    fn cargo_output_ext(&self) -> String {
+        match self {
+            Self::WASM => String::from("wasm"),
+            Self::X86 => String::from("so"),
+            Self::ARM => String::from("so"),
+            Self::MAC_ARM => String::from("dylib"),
+            Self::MAC_X86 => String::from("dylib"),
+        }
+    }
+
+    fn name(&self) -> String {
+        match self {
+            Self::WASM => String::from("WASM"),
+            Self::X86 => String::from("x86"),
+            Self::ARM => String::from("Arm"),
+            Self::MAC_ARM => String::from("Mac ARM"),
+            Self::MAC_X86 => String::from("Mac x86"),
+        }
+    }
+
+    fn from_string(platform: &str) -> Self {
+        match platform {
+            "wasm" => Self::WASM,
+            "x86" => Self::X86,
+            "arm" => Self::ARM,
+            "mac-arm" => Self::MAC_ARM,
+            "mac-x86" => Self::MAC_X86,
+            _ => Self::WASM,
+        }
+    }
+}
+
+enum BuildProfile {
+    DEBUG,
+    RELEASE,
+}
+
+impl BuildProfile {
+    fn name(&self) -> String {
+        match self {
+            Self::DEBUG => String::from("debug"),
+            Self::RELEASE => String::from("release"),
+        }
+    }
+
+    fn from_string(profile: &str) -> Self {
+        match profile {
+            "debug" => Self::DEBUG,
+            "release" => Self::RELEASE,
+            _ => Self::RELEASE,
+        }
+    }
+}
+
 pub fn edgeless_cli_default_conf() -> String {
     let cli_conf = CLiConfig::default();
     toml::to_string(&cli_conf).expect("Wrong")
@@ -336,7 +419,7 @@ async fn main() -> anyhow::Result<()> {
                         .unwrap()
                         .to_string();
                     let out_file = cargo_project_path
-                        .join(format!("{}.{}", function_spec.id, platform.suffix()))
+                        .join(platform.out_file_name(&function_spec.id))
                         .to_str()
                         .unwrap()
                         .to_string();
@@ -410,6 +493,19 @@ async fn main() -> anyhow::Result<()> {
                             _ => (),
                         }
 
+                        let mut target_rustc_args = Vec::new();
+                        match platform {
+                            Platform::MAC_ARM | Platform::MAC_X86 => {
+                                target_rustc_args.push("-C".to_string());
+                                target_rustc_args.push("link-args=-Wl,-undefined,dynamic_lookup".to_string());
+                            }
+                            Platform::ARM | Platform::X86 => {
+                                target_rustc_args.push("-C".to_string());
+                                target_rustc_args.push("link-args=-rdynamic".to_string());
+                            }
+                            _ => {}
+                        }
+
                         let compile_options = cargo::ops::CompileOptions {
                             build_config: build_config,
                             cli_features: cargo::core::resolver::CliFeatures::new_all(false),
@@ -418,7 +514,7 @@ async fn main() -> anyhow::Result<()> {
                                 required_features_filterable: false,
                             },
                             target_rustdoc_args: None,
-                            target_rustc_args: None,
+                            target_rustc_args: if target_rustc_args.is_empty() { None } else { Some(target_rustc_args) },
                             target_rustc_crate_types: None,
                             rustdoc_document_private_items: false,
                             honor_rust_version: Some(true),
@@ -438,12 +534,19 @@ async fn main() -> anyhow::Result<()> {
                             .unwrap()
                             .to_string();
 
-                        println!(
-                            "{:?}",
-                            std::process::Command::new("wasm-opt")
-                                .args(["--all-features", "-Oz", &raw_result, "-o", &out_file])
-                                .status()?
-                        );
+                        match platform {
+                            Platform::WASM => {
+                                println!(
+                                    "{:?}",
+                                    std::process::Command::new("wasm-opt")
+                                        .args(["--all-features", "-Oz", &raw_result, "-o", &out_file])
+                                        .status()?
+                                );
+                            }
+                            _ => {
+                                std::fs::copy(&raw_result, &out_file)?;
+                            }
+                        }
                     }
                 }
                 FunctionCommands::Invoke {

@@ -11,7 +11,7 @@ use {
 static GUEST_API_HOST: OnceCell<AtomicPtr<usize>> = OnceCell::new();
 
 #[cfg(not(target_arch = "wasm32"))]
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn set_guest_api_host_pointer(ptr: *const usize) {
     log::debug!("Setting the GUEST_API_HOST pointer to: {:p}", ptr);
 

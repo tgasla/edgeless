@@ -48,21 +48,27 @@ impl crate::base_runtime::FunctionInstance for NativeFunctionInstance {
         instance_id: &edgeless_api::function_instance::InstanceId,
         _runtime_configuration: std::collections::HashMap<String, String>,
         guest_api_host: &mut Option<crate::base_runtime::guest_api::GuestAPIHost>,
-        code: &[u8],
+        binary: &[u8],
+        _code: &str,
     ) -> Result<Box<Self>, crate::base_runtime::FunctionInstanceError> {
 
-        let file_path = format!("/tmp/native-{}.so", instance_id.function_id);
-        log::debug!("Native RT (instantiate): file path: {} code len: {}", file_path, code.len());
+        let extension = if cfg!(target_os = "macos") {
+            "dylib"
+        } else {
+            "so"
+        };
+        let file_path = format!("/tmp/native-{}.{}", instance_id.function_id, extension);
+        log::debug!("Native RT (instantiate): file path: {} binary len: {}", file_path, binary.len());
         let code_path = Path::new(file_path.as_str());
 
         let mut file = match File::create(code_path) { 
             Ok(file) => file,
             Err(e) => { 
-                log::info!("Native RT: Cannot open file /tmp/native.so error {}", e); 
+                log::info!("Native RT: Cannot open file {} error {}", file_path, e); 
                 panic!("couldn't create {}: {}", code_path.display(), e)
                 },
         };
-        match file.write_all(code) {
+        match file.write_all(binary) {
             Ok(_) => {},
             Err(e) => {
                 log::info!("Native RT: Cannot write code to file error: {}.", e);
@@ -194,7 +200,7 @@ impl crate::base_runtime::FunctionInstance for NativeFunctionInstance {
 }
 
 impl NativeFunctionInstance {
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     unsafe extern "C" fn cast_raw_asm(
         &mut self, 
         instance_node_id_ptr: *const u8, 
@@ -214,7 +220,7 @@ impl NativeFunctionInstance {
             function_id: uuid::Uuid::from_bytes(component_id)
         };
 
-        let payload: &str = std::str::from_utf8(core::slice::from_raw_parts(payload_ptr, payload_len)).unwrap();
+        let payload: &str = unsafe { std::str::from_utf8(core::slice::from_raw_parts(payload_ptr, payload_len)).unwrap() };
 
         let future = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
@@ -227,7 +233,7 @@ impl NativeFunctionInstance {
         //futures::executor::block_on(self.guest_api_host.call_raw(instance_id, payload));
     }
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     unsafe extern "C" fn cast_asm(
         &mut self,
         target_ptr: *const u8, 
@@ -235,8 +241,8 @@ impl NativeFunctionInstance {
         payload_ptr: *const u8, 
         payload_len: usize
     ) {
-        let target: &str = std::str::from_utf8(core::slice::from_raw_parts(target_ptr, target_len)).unwrap();
-        let payload: &str = std::str::from_utf8(core::slice::from_raw_parts(payload_ptr, payload_len)).unwrap();
+        let target: &str = unsafe { std::str::from_utf8(core::slice::from_raw_parts(target_ptr, target_len)).unwrap() };
+        let payload: &str = unsafe { std::str::from_utf8(core::slice::from_raw_parts(payload_ptr, payload_len)).unwrap() };
 
         //println!("Native RT: Cast: Target: {} Payload: {}", target, payload);
         
@@ -251,7 +257,7 @@ impl NativeFunctionInstance {
         //futures::executor::block_on(self.guest_api_host.cast_alias(target, payload));
     }
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     unsafe extern "C" fn call_raw_asm(
         &mut self,
         instance_node_id_ptr: *const u8,
@@ -273,7 +279,7 @@ impl NativeFunctionInstance {
             function_id: uuid::Uuid::from_bytes(component_id)
         };
 
-        let payload: &str = std::str::from_utf8(core::slice::from_raw_parts(payload_ptr, payload_len)).unwrap();
+        let payload: &str = unsafe { std::str::from_utf8(core::slice::from_raw_parts(payload_ptr, payload_len)).unwrap() };
 
         let callret_type = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
@@ -296,7 +302,7 @@ impl NativeFunctionInstance {
         0
     }
 
-    #[no_mangle]    
+    #[unsafe(no_mangle)]    
     unsafe extern "C" fn call_asm(
         &mut self,
         target_ptr: *const u8,
@@ -306,8 +312,8 @@ impl NativeFunctionInstance {
         out_ptr_ptr: *mut *mut u8,
         out_len_ptr: *mut usize,
     ) -> i32 {
-        let target: &str = std::str::from_utf8(core::slice::from_raw_parts(target_ptr, target_len)).unwrap();
-        let payload: &str = std::str::from_utf8(core::slice::from_raw_parts(payload_ptr, payload_len)).unwrap();
+        let target: &str = unsafe { std::str::from_utf8(core::slice::from_raw_parts(target_ptr, target_len)).unwrap() };
+        let payload: &str = unsafe { std::str::from_utf8(core::slice::from_raw_parts(payload_ptr, payload_len)).unwrap() };
 
         println!("Native RT: Call: Target: {} Payload: {}", target, payload);
         
@@ -334,8 +340,10 @@ impl NativeFunctionInstance {
                     let leaked_data = data.clone().leak();
                     
                     let data_ptr = leaked_data.as_mut_ptr();
-                    *out_ptr_ptr = data_ptr;
-                    *out_len_ptr = data.len();
+                    unsafe {
+                        *out_ptr_ptr = data_ptr;
+                        *out_len_ptr = data.len();
+                    }
                     1
                 },
                 edgeless_dataplane::core::CallRet::Err => { log::debug!("Native RT Reply with err"); 2 },
@@ -346,7 +354,7 @@ impl NativeFunctionInstance {
          
     }
 
-    #[no_mangle] 
+    #[unsafe(no_mangle)] 
     unsafe extern "C" fn telemetry_log_asm (
         &mut self,
         level: usize, 
@@ -356,8 +364,8 @@ impl NativeFunctionInstance {
         msg_len: usize,
     ) {
         let lvl = level_from_i32(level as i32);
-        let target: &str = std::str::from_utf8(core::slice::from_raw_parts(target_ptr, target_len)).unwrap();
-        let msg: &str = std::str::from_utf8(core::slice::from_raw_parts(msg_ptr, msg_len)).unwrap();
+        let target: &str = unsafe { std::str::from_utf8(core::slice::from_raw_parts(target_ptr, target_len)).unwrap() };
+        let msg: &str = unsafe { std::str::from_utf8(core::slice::from_raw_parts(msg_ptr, msg_len)).unwrap() };
 
         log::info!("Native RT: Log: Level: {} Target: {} msg: {}", level, target, msg);
 
@@ -368,7 +376,7 @@ impl NativeFunctionInstance {
         });
     }
     
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     unsafe extern "C" fn slf_asm(
         &mut self, 
         out_node_id_ptr: *mut u8, 
@@ -379,15 +387,19 @@ impl NativeFunctionInstance {
         let instance_id = futures::executor::block_on(self.guest_api_host.slf());
         
         let node_id_bytes = instance_id.node_id.as_bytes();
-        std::ptr::copy_nonoverlapping(node_id_bytes.as_ptr(), out_node_id_ptr, node_id_bytes.len());
+        unsafe {
+            std::ptr::copy_nonoverlapping(node_id_bytes.as_ptr(), out_node_id_ptr, node_id_bytes.len());
+        }
 
         let function_id_bytes = instance_id.function_id.as_bytes();
-        std::ptr::copy_nonoverlapping(function_id_bytes.as_ptr(), out_component_id_ptr, function_id_bytes.len());
+        unsafe {
+            std::ptr::copy_nonoverlapping(function_id_bytes.as_ptr(), out_component_id_ptr, function_id_bytes.len());
+        }
         
         log::debug!("Native RT: slf id: {}", instance_id);
     }
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     unsafe extern "C" fn delayed_cast_asm(
         &mut self,
         delay_ms: u64, 
@@ -396,8 +408,8 @@ impl NativeFunctionInstance {
         payload_ptr: *const u8, 
         payload_len: usize
     ) {
-        let target: &str = std::str::from_utf8(core::slice::from_raw_parts(target_ptr, target_len)).unwrap();
-        let payload: &str = std::str::from_utf8(core::slice::from_raw_parts(payload_ptr, payload_len)).unwrap();
+        let target: &str = unsafe { std::str::from_utf8(core::slice::from_raw_parts(target_ptr, target_len)).unwrap() };
+        let payload: &str = unsafe { std::str::from_utf8(core::slice::from_raw_parts(payload_ptr, payload_len)).unwrap() };
         
         log::debug!("Native RT: Delayed Cast: Delay: {} Target: {} Payload: {}", delay_ms, target, payload);
         
@@ -412,13 +424,13 @@ impl NativeFunctionInstance {
         //futures::executor::block_on(self.guest_api_host.delayed_cast(delay_ms, &target, &payload));
     }
 
-    #[no_mangle]
+    #[unsafe(no_mangle)]
     unsafe extern "C" fn sync_asm(
         &mut self, 
         data_ptr: *const u8, 
         data_len: usize
     ) {
-        let state: &str = std::str::from_utf8(core::slice::from_raw_parts(data_ptr, data_len)).unwrap();
+        let state: &str = unsafe { std::str::from_utf8(core::slice::from_raw_parts(data_ptr, data_len)).unwrap() };
 
         log::debug!("Native RT: state: {}", state);
         

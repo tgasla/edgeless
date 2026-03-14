@@ -81,7 +81,7 @@ macro_rules! export {
 macro_rules! export {
     ( $fun:ident ) => {
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         pub unsafe extern "C" fn handle_init_asm(
             payload_ptr: *mut u8,
             payload_len: usize,
@@ -103,7 +103,7 @@ macro_rules! export {
             $fun::handle_init(payload, serialized_state)
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         pub unsafe extern "C" fn handle_call_asm(
             node_id_ptr: *mut u8,
             component_id_ptr: *mut u8,
@@ -135,7 +135,7 @@ macro_rules! export {
             ret
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         pub unsafe extern "C" fn handle_cast_asm(
             node_id_ptr: *mut u8,
             component_id_ptr: *mut u8,
@@ -151,7 +151,7 @@ macro_rules! export {
             $fun::handle_cast(instance_id, payload);
         }
         
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         pub extern "C" fn handle_stop_asm() {
             $fun::handle_stop()
         }
