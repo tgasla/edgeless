@@ -961,7 +961,7 @@ pub fn edgeless_node_default_conf() -> String {
         container_runtime: Some(EdgelessNodeContainerRuntimeSettings::default()),
         resources: Some(EdgelessNodeResourceSettings {
             prepend_hostname: true,
-            http_ingress_url: Some(String::from("http://127.0.0.1:7008")),
+            http_ingress_url: Some(String::from("http://127.0.0.1:7007")),
             http_ingress_provider: Some("http-ingress-1".to_string()),
             http_egress_provider: Some("http-egress-1".to_string()),
             http_poster_provider: Some("http-poster-1".to_string()),

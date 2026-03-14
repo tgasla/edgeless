@@ -214,15 +214,15 @@ _almost certainly_ be different for you)):
 ```ini
 [general]
 node_id = "96f2bac7-88c0-4681-b7bb-0717e9534093"
-agent_url = "http://127.0.0.1:7005"
-agent_url_announced = "http://127.0.0.1:7005"
-invocation_url = "http://127.0.0.1:7006"
-invocation_url_announced = "http://127.0.0.1:7006"
-node_register_url = "http://127.0.0.1:7004"
+agent_url = "http://127.0.0.1:7004"
+agent_url_announced = "http://127.0.0.1:7004"
+invocation_url = "http://127.0.0.1:7005"
+invocation_url_announced = "http://127.0.0.1:7005"
+node_register_url = "http://127.0.0.1:7003"
 subscription_refresh_interval_sec = 2
 
 [telemetry]
-metrics_url = "http://127.0.0.1:7007"
+metrics_url = "http://127.0.0.1:7006"
 performance_samples = false
 
 [wasm_runtime]
@@ -234,7 +234,7 @@ guest_api_host_url = "http://127.0.0.1:7100"
 
 [resources]
 prepend_hostname = true
-http_ingress_url = "http://127.0.0.1:7008"
+http_ingress_url = "http://127.0.0.1:7007"
 http_ingress_provider = "http-ingress-1"
 http_egress_provider = "http-egress-1"
 file_log_provider = "file-log-1"
@@ -320,11 +320,11 @@ readability):
 
 ```
 Starting Edgeless Node
-Server::run; addr=127.0.0.1:7007
+Server::run; addr=127.0.0.1:7003
 Starting Edgeless Runner
-listening on http://127.0.0.1:7007
-Creating http-ingress resource provider 'Claudios-MacBook-Pro.local-http-ingress-1' at http://127.0.0.1:7008
-Start InvocationAPI GRPC Server at http://127.0.0.1:7006
+listening on http://127.0.0.1:7003
+Creating http-ingress resource provider 'Claudios-MacBook-Pro.local-http-ingress-1' at http://127.0.0.1:7007
+Start InvocationAPI GRPC Server at http://127.0.0.1:7005
 Creating http-egress resource provider 'http-egress-1'
 Creating file-log resource provider 'file-log-1'
 Creating redis resource provider 'redis-1'
@@ -332,7 +332,7 @@ Creating dda resource provider 'dda-1'
 Creating resource 'sqlite://sqlite.db'
 new runner, class_type: RUST_WASM
 Starting EDGELESS node agent
-Start AgentAPI GRPC Server at http://127.0.0.1:7005
+Start AgentAPI GRPC Server at http://127.0.0.1:7004
 Resetting the node to a clean state
 ```
 
@@ -345,7 +345,7 @@ New resource advertised by node 96f2bac7-88c0-4681-b7bb-0717e9534093: provider_i
 New resource advertised by node 96f2bac7-88c0-4681-b7bb-0717e9534093: provider_id Claudios-MacBook-Pro.local-redis-1, class_type redis, outputs []
 New resource advertised by node 96f2bac7-88c0-4681-b7bb-0717e9534093: provider_id Claudios-MacBook-Pro.local-dda-1, class_type dda, outputs [out]
 New resource advertised by node 96f2bac7-88c0-4681-b7bb-0717e9534093: provider_id Claudios-MacBook-Pro.local-sqlite://sqlite.db, class_type sqlx, outputs []
-New node ID 96f2bac7-88c0-4681-b7bb-0717e9534093 agent_url http://127.0.0.1:7005 invocation_url http://127.0.0.1:7006
+New node ID 96f2bac7-88c0-4681-b7bb-0717e9534093 agent_url http://127.0.0.1:7004 invocation_url http://127.0.0.1:7005
 ```
 
 which shows that the node's resource providers have been added and associated
