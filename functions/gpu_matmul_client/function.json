@@ -1,0 +1,9 @@
+{
+    "id": "gpu_client",
+    "version": "0.1",
+    "function_type": "RUST_WASM",
+    "build": "Cargo.toml",
+    "outputs": [
+        "worker"
+    ]
+}

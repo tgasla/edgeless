@@ -25,9 +25,17 @@ impl EdgeFunction for PingerFun {
             sync(&serde_json::to_string(STATE.get().unwrap().lock().unwrap().deref()).unwrap().as_bytes());
 
             let res = call("ponger", &format!("PING-{}", id).as_bytes());
-            if let CallRet::Reply(msg) = res {
-                if let Ok(msg) = std::str::from_utf8(&msg) {
-                    log::info!("Got Reply: {}", msg);
+            match res {
+                CallRet::Reply(msg) => {
+                    if let Ok(msg) = std::str::from_utf8(&msg) {
+                        log::info!("Got Reply: {}", msg);
+                    }
+                }
+                CallRet::NoReply => {
+                    log::info!("Got NoReply");
+                }
+                CallRet::Err => {
+                    log::info!("Got Reply Error");
                 }
             }
 
@@ -54,7 +62,7 @@ impl EdgeFunction for PingerFun {
             STATE.set(std::sync::Mutex::new(PingerState { count: 0 })).unwrap();
         }
 
-        cast("self", b"wakeup");
+        delayed_cast(1000, "self", b"wakeup");
     }
 
     fn handle_stop() {

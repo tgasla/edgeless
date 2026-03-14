@@ -152,6 +152,7 @@ fn generate_configs(config_path: String, number_of_nodes: u32, initial_port: u16
                 performance_samples: false,
             },
             wasm_runtime: Some(edgeless_node::EdgelessNodeWasmRuntimeSettings { enabled: true }),
+            native_runtime: Some(edgeless_node::EdgelessNodeNativeRuntimeSettings { enabled: true }),
             container_runtime: Some(EdgelessNodeContainerRuntimeSettings::default()),
             resources: Some(EdgelessNodeResourceSettings {
                 prepend_hostname: true,

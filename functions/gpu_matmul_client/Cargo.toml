@@ -1,0 +1,28 @@
+[workspace]
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+lto = true
+opt-level = "z"
+panic = "abort"
+codegen-units = 1
+strip = true
+
+[package]
+name = "gpu_client"
+version = "0.1.0"
+authors = ["Edgeless Assistant"]
+edition = "2021"
+
+[lib]
+name = "gpu_client"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+edgeless_function = { path = "../../edgeless_function" }
+log = "0.4"
+serde = {version="1", features=["derive"] }
+serde_json = "1"

@@ -47,7 +47,7 @@ impl OwnedByteBuff {
     /// We are nice people. Nice people do not add bugs to unsafe Rust code.
     pub unsafe fn consume(self) -> (*mut u8, usize) {
         let res = (self.data, self.size);
-        core::mem::drop(self);
+        core::mem::forget(self);
         res
     }
 }

@@ -1,5 +1,7 @@
 // SPDX-FileCopyrightText: © 2023 Technical University of Munich, Chair of Connected Mobility
 // SPDX-FileCopyrightText: © 2023 Claudio Cicconetti <c.cicconetti@iit.cnr.it>
+// SPDX-FileCopyrightText: © 2023 University of Cambridge, System Research Group
+// SPDX-FileCopyrightText: © 2024 Roman Kolcun <roman.kolcun@cl.cam.ac.uk>
 // SPDX-FileCopyrightText: © 2023 Siemens AG
 // SPDX-License-Identifier: MIT
 
@@ -32,6 +34,10 @@ enum WorkflowCommands {
 enum FunctionCommands {
     Build {
         spec_file: String,
+        #[arg(short, long, default_value_t = String::from("wasm"))]
+        architecture: String,
+        #[arg(short, long, default_value_t = String::from("release"))]
+        build_profile: String,
     },
     Invoke {
         event_type: String,
@@ -297,7 +303,11 @@ async fn main() -> anyhow::Result<()> {
                 }
             }
             Commands::Function { function_command } => match function_command {
-                FunctionCommands::Build { spec_file } => {
+                FunctionCommands::Build {
+                    spec_file,
+                    architecture,
+                    build_profile,
+                } => {
                     let spec_file_path = std::fs::canonicalize(std::path::PathBuf::from(spec_file.clone()))?;
                     let cargo_project_path = spec_file_path.parent().unwrap().to_path_buf();
                     let cargo_manifest = cargo_project_path.join("Cargo.toml");
@@ -310,11 +320,27 @@ async fn main() -> anyhow::Result<()> {
                     let mut ws = cargo::core::Workspace::new(&cargo_manifest, &context)?;
                     ws.set_target_dir(cargo::util::Filesystem::new(build_dir.clone()));
 
-                    let out_file = cargo_project_path
-                        .join(format!("{}.wasm", function_spec.id))
+                    let platform = Platform::from_string(architecture.as_str());
+                    let pack = ws.current()?;
+
+                    let lib_name = match pack.library() {
+                        Some(val) => val.name(),
+                        None => {
+                            return Err(anyhow::anyhow!("Cargo package does not contain library."));
+                        }
+                    };
+
+                    let raw_result = build_dir
+                        .join(format!("{}/release/lib{}.{}", platform.target(), lib_name, platform.cargo_output_ext()))
                         .to_str()
                         .unwrap()
                         .to_string();
+                    let out_file = cargo_project_path
+                        .join(format!("{}.{}", function_spec.id, platform.suffix()))
+                        .to_str()
+                        .unwrap()
+                        .to_string();
+
                     // check if function.json, Cargo.toml, Cargo.lock or src/
                     // have been modified since the last time the function has
                     // been built. If not - skip the build.
@@ -350,10 +376,21 @@ async fn main() -> anyhow::Result<()> {
                         } else {
                             log::info!("Building the function for the first time.")
                         }
-                        let pack = ws.current()?;
+
+                        let profile = BuildProfile::from_string(build_profile.as_str());
+
+                        println!(
+                            "Building profile {} for architecture {} using {} target.",
+                            profile.name(),
+                            platform.name(),
+                            platform.target()
+                        );
 
                         let lib_name = match pack.library() {
-                            Some(val) => val.name(),
+                            Some(val) => match platform {
+                                Platform::WASM => val.name().to_string(),
+                                _ => format!("lib{}", val.name()),
+                            },
                             None => {
                                 return Err(anyhow::anyhow!("Cargo package does not contain library."));
                             }
@@ -363,13 +400,18 @@ async fn main() -> anyhow::Result<()> {
                             &context,
                             None,
                             false,
-                            &["wasm32-unknown-unknown".to_string()],
+                            //&vec!["wasm32-unknown-unknown".to_string()],
+                            &vec![platform.target()],
                             cargo::core::compiler::CompileMode::Build,
                         )?;
-                        build_config.requested_profile = cargo::util::interning::InternedString::new("release");
+
+                        match profile {
+                            BuildProfile::RELEASE => build_config.requested_profile = cargo::util::interning::InternedString::new("release"),
+                            _ => (),
+                        }
 
                         let compile_options = cargo::ops::CompileOptions {
-                            build_config,
+                            build_config: build_config,
                             cli_features: cargo::core::resolver::CliFeatures::new_all(false),
                             spec: cargo::ops::Packages::Packages(Vec::new()),
                             filter: cargo::ops::CompileFilter::Default {
@@ -385,7 +427,13 @@ async fn main() -> anyhow::Result<()> {
                         cargo::ops::compile(&ws, &compile_options)?;
 
                         let raw_result = build_dir
-                            .join(format!("wasm32-unknown-unknown/release/{}.wasm", lib_name))
+                            .join(format!(
+                                "{}/{}/{}.{}",
+                                platform.target(),
+                                profile.name(),
+                                lib_name,
+                                platform.cargo_output_ext()
+                            ))
                             .to_str()
                             .unwrap()
                             .to_string();
@@ -525,6 +573,7 @@ async fn main() -> anyhow::Result<()> {
                     let file_body = Body::wrap_stream(stream);
 
                     //make form part of file
+
                     let some_file = multipart::Part::stream(file_body).file_name("binary"); // this is in curl -F "function_x86" in "file=@function_x86"
 
                     //create the multipart form

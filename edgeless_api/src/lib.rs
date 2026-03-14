@@ -14,6 +14,7 @@ pub mod guest_api_host;
 pub mod invocation;
 pub mod node_management;
 pub mod node_registration;
+pub mod native_runtime;
 pub mod outer;
 pub mod resource_configuration;
 pub mod util;

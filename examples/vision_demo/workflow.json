@@ -1,0 +1,75 @@
+{
+    "functions": [
+        {
+            "name": "camera_source",
+            "class_specification": {
+                "id": "camera_source",
+                "function_type": "RUST_WASM",
+                "version": "0.1",
+                "code": "../../functions/camera_source/camera_source.wasm",
+                "outputs": [
+                    "raw_image_channel",
+                    "http_e"
+                ]
+            },
+            "output_mapping": {
+                "raw_image_channel": "ai_engine",
+                "http_e": "image-fetcher"
+            },
+            "annotations": {
+                "label_match_all": "darwin"
+            }
+        },
+        {
+            "name": "ai_engine",
+            "class_specification": {
+                "id": "ai_engine",
+                "function_type": "RUST_NATIVE",
+                "version": "0.1",
+                "code": "../../functions/ai_engine/ai_engine.arm",
+                "outputs": [
+                    "transformed_image_channel"
+                ]
+            },
+            "output_mapping": {
+                "transformed_image_channel": "visualizer"
+            },
+            "annotations": {
+                "label_match_all": "linux,arm"
+            }
+        },
+        {
+            "name": "visualizer",
+            "class_specification": {
+                "id": "visualizer",
+                "function_type": "RUST_WASM",
+                "version": "0.1",
+                "code": "../../functions/visualizer/visualizer.wasm",
+                "outputs": [
+                    "http_out"
+                ]
+            },
+            "output_mapping": {
+                "http_out": "image-saver"
+            },
+            "annotations": {
+                "label_match_all": "darwin"
+            }
+        }
+    ],
+    "resources": [
+        {
+            "name": "image-fetcher",
+            "class_type": "http-egress",
+            "output_mapping": {},
+            "configurations": {}
+        },
+        {
+            "name": "image-saver",
+            "class_type": "http-egress",
+            "output_mapping": {},
+            "configurations": {}
+        }
+    ],
+    "annotations": {}
+}

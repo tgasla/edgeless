@@ -23,4 +23,5 @@ impl EdgeFunction for PongerFun {
         log::info!("Ponger: 'Stop' called");
     }
 }
+
 edgeless_function::export!(PongerFun);

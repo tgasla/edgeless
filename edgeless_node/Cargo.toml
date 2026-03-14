@@ -60,6 +60,7 @@ edgeless_api = { path = "../edgeless_api", features = ["grpc_impl"] }
 edgeless_telemetry = { path = "../edgeless_telemetry" }
 edgeless_dataplane = { path = "../edgeless_dataplane" }
 edgeless_http = { path = "../edgeless_http", features = ["hyper"] }
+edgeless_function = { path = "../edgeless_function" }
 hyper = { version = "1.2", features = ["full"] }
 hyper-util = { version = "0.1", features = ["tokio"] }
 reqwest = { version = "0.11" }
@@ -76,6 +77,7 @@ base64 = "0.22.1"
 # See this GitHub issue: https://github.com/edgeless-project/edgeless/issues/226 for more information
 rs-docker = { version = "0.0.63", git = "https://github.com/edgeless-project/rust-docker.git" }
 chrono = "0.4.38"
+libloading = "0.8.3"
 ollama-rs = { version = "0.2.0", features = ["chat-history"] }
 rdkafka = { version = "0.36.2", optional = true }
 dda = { path = "../edgeless_dda" }

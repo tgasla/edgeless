@@ -16,6 +16,13 @@ pub enum StatePolicy {
     Global,
 }
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize, PartialEq, Eq, Hash)]
+pub enum FunctionType {
+    RustWasm,
+    RustX86_64,
+    RustAarch64,
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct StateSpecification {
     pub state_id: uuid::Uuid,
@@ -77,6 +84,17 @@ pub trait FunctionInstanceAPI<FunctionIdType: Clone>: FunctionInstanceAPIClone<F
     async fn start(&mut self, spawn_request: SpawnFunctionRequest) -> anyhow::Result<crate::common::StartComponentResponse<FunctionIdType>>;
     async fn stop(&mut self, id: FunctionIdType) -> anyhow::Result<()>;
     async fn patch(&mut self, update: crate::common::PatchRequest) -> anyhow::Result<()>;
+}
+
+impl FunctionType {
+    pub fn from_string(function_type: &str) -> Self {
+        match function_type {
+            "RUST_WASM" => Self::RustWasm,
+            "RUST_X86" => Self::RustX86_64,
+            "RUST_ARM" => Self::RustAarch64,
+            _ => Self::RustWasm,
+        }
+    }
 }
 
 // https://stackoverflow.com/a/30353928

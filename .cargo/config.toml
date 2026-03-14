@@ -1,4 +1,17 @@
+[target.x86_64-unknown-linux-gnu]
+linker = "x86_64-linux-gnu-gcc"
+rustflags = ["-C", "link-args=-rdynamic"]
+
 [target.aarch64-unknown-linux-gnu]
-linker = "/usr/bin/aarch64-linux-gnu-gcc"
+linker = "aarch64-linux-gnu-gcc"
+rustflags = ["-C", "link-args=-rdynamic"]
+
+# [target.aarch64-apple-darwin]
+# linker = "clang"
+# rustflags = ["-C", "link-args=-dynamiclib"]
+
+# [target.x86_64-apple-darwin]
+# linker = "clang"
+# rustflags = ["-C", "link-args=-dynamiclib"]
 
 [env]

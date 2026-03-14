@@ -1,0 +1,22 @@
+[workspace]
+
+[package]
+name = "ai_engine"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+edgeless_function = { path = "../../edgeless_function" }
+candle-core = { version = "0.9.2", features = ["cuda"] }
+candle-nn = { version = "0.9.2", features = ["cuda"] }
+candle-transformers = { version = "0.9.2", features = ["cuda"] }
+hf-hub = "0.4"
+tokenizers = "0.19"
+rand = "0.8"
+image = { version = "0.24", default-features = false, features = ["png"] }
+log = "0.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
