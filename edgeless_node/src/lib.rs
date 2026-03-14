@@ -134,6 +134,7 @@ impl Default for EdgelessNodeGeneralSettings {
 #[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
 pub struct EdgelessNodeResourceSettings {
     /// If true, prepend the hostname to the resource name.
+    #[serde(default)]
     pub prepend_hostname: bool,
     /// If `http_ingress_provider` is not empty, this is the URL of the
     /// HTTP web server exposed by the http-ingress resource for this node.

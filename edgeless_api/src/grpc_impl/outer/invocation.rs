@@ -88,7 +88,7 @@ impl InvocationAPIClient {
                 match tls_config.create_channel_with_tpm(&server_addr).await {
                     Ok(channel) => {
                         let client = crate::grpc_impl::api::function_invocation_client::FunctionInvocationClient::new(channel)
-                            .max_decoding_message_size(usize::MAX);
+                            .max_decoding_message_size(usize::MAX).max_encoding_message_size(usize::MAX);
                         return Self { client };
                     }
                     Err(err) => {
@@ -126,7 +126,7 @@ impl InvocationAPIClient {
 
                 match crate::grpc_impl::api::function_invocation_client::FunctionInvocationClient::connect(endpoint.clone()).await {
                     Ok(client) => {
-                        let client = client.max_decoding_message_size(usize::MAX);
+                        let client = client.max_decoding_message_size(usize::MAX).max_encoding_message_size(usize::MAX);
                         return Self { client };
                     }
                     Err(err) => {
@@ -222,7 +222,7 @@ impl InvocationAPIServer {
                 match server_builder
                     .add_service(
                         crate::grpc_impl::api::function_invocation_server::FunctionInvocationServer::new(function_api)
-                            .max_decoding_message_size(usize::MAX),
+                            .max_decoding_message_size(usize::MAX).max_encoding_message_size(usize::MAX),
                     )
                     .serve(host)
                     .await

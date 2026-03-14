@@ -66,7 +66,7 @@ impl WorkflowInstanceAPIServer {
                 match server_builder
                     .add_service(
                         crate::grpc_impl::api::workflow_instance_server::WorkflowInstanceServer::new(workflow_api)
-                            .max_decoding_message_size(usize::MAX),
+                            .max_decoding_message_size(usize::MAX).max_encoding_message_size(usize::MAX),
                     )
                     .serve(host)
                     .await

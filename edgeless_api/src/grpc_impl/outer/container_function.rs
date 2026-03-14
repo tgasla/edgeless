@@ -68,7 +68,7 @@ impl GuestAPIFunctionServer {
                 match server_builder
                     .add_service(
                         crate::grpc_impl::api::guest_api_function_server::GuestApiFunctionServer::new(workflow_api)
-                            .max_decoding_message_size(usize::MAX),
+                            .max_decoding_message_size(usize::MAX).max_encoding_message_size(usize::MAX),
                     )
                     .serve(host)
                     .await

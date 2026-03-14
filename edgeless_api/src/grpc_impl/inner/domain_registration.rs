@@ -41,7 +41,7 @@ impl DomainRegistrationAPIClient {
             let channel = tls_config.create_client_channel(&self.server_addr).await?;
 
             self.client =
-                Some(crate::grpc_impl::api::domain_registration_client::DomainRegistrationClient::new(channel).max_decoding_message_size(usize::MAX));
+                Some(crate::grpc_impl::api::domain_registration_client::DomainRegistrationClient::new(channel).max_decoding_message_size(usize::MAX).max_encoding_message_size(usize::MAX));
         }
         Ok(())
     }

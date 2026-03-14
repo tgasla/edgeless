@@ -87,11 +87,11 @@ impl OrchestratorAPIServer {
                 match server_builder
                     .add_service(
                         crate::grpc_impl::api::function_instance_server::FunctionInstanceServer::new(function_api)
-                            .max_decoding_message_size(usize::MAX),
+                            .max_decoding_message_size(usize::MAX).max_encoding_message_size(usize::MAX),
                     )
                     .add_service(
                         crate::grpc_impl::api::resource_configuration_server::ResourceConfigurationServer::new(resource_configuration_api)
-                            .max_decoding_message_size(usize::MAX),
+                            .max_decoding_message_size(usize::MAX).max_encoding_message_size(usize::MAX),
                     )
                     .serve(host)
                     .await

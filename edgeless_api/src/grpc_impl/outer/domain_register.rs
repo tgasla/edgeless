@@ -68,7 +68,7 @@ impl DomainRegistrationAPIServer {
                 match server_builder
                     .add_service(
                         crate::grpc_impl::api::domain_registration_server::DomainRegistrationServer::new(domain_registration_api)
-                            .max_decoding_message_size(usize::MAX),
+                            .max_decoding_message_size(usize::MAX).max_encoding_message_size(usize::MAX),
                     )
                     .serve(host)
                     .await

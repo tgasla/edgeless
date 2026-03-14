@@ -38,7 +38,7 @@ impl<ResourceIdType> ResourceConfigurationClient<ResourceIdType> {
             let channel = tls_config.create_client_channel(&self.server_addr).await?;
 
             self.client = Some(
-                crate::grpc_impl::api::resource_configuration_client::ResourceConfigurationClient::new(channel).max_decoding_message_size(usize::MAX),
+                crate::grpc_impl::api::resource_configuration_client::ResourceConfigurationClient::new(channel).max_decoding_message_size(usize::MAX).max_encoding_message_size(usize::MAX),
             );
         }
         Ok(())

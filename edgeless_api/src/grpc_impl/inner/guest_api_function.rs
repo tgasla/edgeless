@@ -20,7 +20,7 @@ impl GuestAPIFunctionClient {
             match tls_config.create_client_channel(&server_addr).await {
                 Ok(channel) => {
                     let client =
-                        crate::grpc_impl::api::guest_api_function_client::GuestApiFunctionClient::new(channel).max_decoding_message_size(usize::MAX);
+                        crate::grpc_impl::api::guest_api_function_client::GuestApiFunctionClient::new(channel).max_decoding_message_size(usize::MAX).max_encoding_message_size(usize::MAX);
                     return Ok(Self { client });
                 }
                 Err(err) => {
