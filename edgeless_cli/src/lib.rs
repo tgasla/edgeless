@@ -5,16 +5,19 @@ pub fn workflow_spec_to_request(
     workflow_spec: edgeless_api::workflow_instance::SpawnWorkflowRequest,
     parent_path: &std::path::Path,
 ) -> anyhow::Result<edgeless_api::workflow_instance::SpawnWorkflowRequest> {
-    // Check that all the RUST_WASM binaries are available.
+    // Check that all the RUST_WASM and native (RUST_X86/RUST_ARM) binaries are available.
     for function in &workflow_spec.functions {
-        if function.class_specification.function_type == "RUST_WASM" {
-            if let Some(code_path_str) = &function.class_specification.code {
-                let code_path = parent_path.join(code_path_str);
-                anyhow::ensure!(code_path.exists(), "code file does not exist for '{}': {}", function.name, code_path_str);
-                anyhow::ensure!(code_path.is_file(), "code file for '{}' is not regular: {}", function.name, code_path_str);
-            } else {
-                anyhow::bail!("RUST_WASM function code not specified for '{}'", function.name);
+        match function.class_specification.function_type.as_str() {
+            "RUST_WASM" | "RUST_X86" | "RUST_ARM" => {
+                if let Some(code_path_str) = &function.class_specification.code {
+                    let code_path = parent_path.join(code_path_str);
+                    anyhow::ensure!(code_path.exists(), "code file does not exist for '{}': {}", function.name, code_path_str);
+                    anyhow::ensure!(code_path.is_file(), "code file for '{}' is not regular: {}", function.name, code_path_str);
+                } else {
+                    anyhow::bail!("{} function code not specified for '{}'", function.class_specification.function_type, function.name);
+                }
             }
+            _ => {}
         }
     }
 
@@ -29,10 +32,11 @@ pub fn workflow_spec_to_request(
                     id: func_spec.class_specification.id,
                     function_type: func_spec.class_specification.function_type.clone(),
                     version: func_spec.class_specification.version,
-                    binary: if func_spec.class_specification.function_type == "RUST_WASM" {
-                        Some(std::fs::read(parent_path.join(func_spec.class_specification.code.clone().unwrap())).unwrap())
-                    } else {
-                        None
+                    binary: match func_spec.class_specification.function_type.as_str() {
+                        "RUST_WASM" | "RUST_X86" | "RUST_ARM" => {
+                            Some(std::fs::read(parent_path.join(func_spec.class_specification.code.clone().unwrap())).unwrap())
+                        }
+                        _ => None,
                     },
                     code: func_spec.class_specification.code,
                     outputs: func_spec.class_specification.outputs,
