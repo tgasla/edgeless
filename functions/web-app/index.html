@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Engine Studio</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+        }
+
+        .container {
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        input,
+        textarea {
+            background: #2c2c2c;
+            border: 1px solid #444;
+            color: white;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 16px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+
+        .image-preview {
+            width: 100%;
+            border-radius: 8px;
+            margin-top: 10px;
+            display: none;
+            border: 2px dashed #444;
+        }
+
+        #loading {
+            display: none;
+            text-align: center;
+            font-weight: bold;
+            color: #007bff;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2>🎨 AI Generation Studio</h2>
+
+        <div>
+            <label>Upload Starting Image:</label>
+            <input type="file" id="imageInput" accept="image/png, image/jpeg">
+        </div>
+
+        <div>
+            <label>Prompt:</label>
+            <textarea id="promptInput"
+                rows="3">A beautiful cinematic fantasy landscape, vibrant colors, epic volumetric lighting, detailed, ultra high quality, 4k</textarea>
+        </div>
+
+        <div class="slider-container">
+            <label>Transformation Strength (Timestep): <span id="timestepValue">350</span></label>
+            <input type="range" id="timestepInput" min="100" max="600" value="350">
+        </div>
+
+        <button id="generateBtn">Generate Magic ✨</button>
+        <div id="loading">Sending to MSI ARM Machine... (This might take a few seconds)</div>
+
+        <img id="resultImage" class="image-preview" alt="Generated Output">
+    </div>
+
+    <script>
+        // Update the slider text when moving it
+        const timestepInput = document.getElementById('timestepInput');
+        const timestepValue = document.getElementById('timestepValue');
+        timestepInput.addEventListener('input', () => {
+            timestepValue.innerText = timestepInput.value;
+        });
+
+        document.getElementById('generateBtn').addEventListener('click', async () => {
+            const fileInput = document.getElementById('imageInput').files[0];
+            if (!fileInput) {
+                alert("Please upload an image first!");
+                return;
+            }
+
+            // Lock the UI
+            const btn = document.getElementById('generateBtn');
+            const loading = document.getElementById('loading');
+            const resultImage = document.getElementById('resultImage');
+
+            btn.disabled = true;
+            loading.style.display = 'block';
+            resultImage.style.display = 'none';
+
+            try {
+                // Read the image file and convert it to Base64
+                const reader = new FileReader();
+                reader.readAsDataURL(fileInput);
+
+                reader.onload = async () => {
+                    // Extract JUST the base64 string (remove the "data:image/png;base64," part)
+                    const base64String = reader.result.split(',')[1];
+
+                    const payload = {
+                        prompt: document.getElementById('promptInput').value,
+                        timestep: parseInt(timestepInput.value),
+                        image_base64: base64String
+                    };
+
+                    // !!! CHANGE THIS URL to your Edgeless HTTP Ingress URL !!!
+                    const EDGELESS_URL = "http://127.0.0.1:7007/api/generate";
+
+                    // Fire the JSON across the internet
+                    const response = await fetch(EDGELESS_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) throw new Error("Server returned " + response.status);
+
+                    const data = await response.json();
+
+                    // Display the resulting Base64 image!
+                    resultImage.src = "data:image/png;base64," + data.result_base64;
+                    resultImage.style.display = 'block';
+
+                    // Unlock UI
+                    btn.disabled = false;
+                    loading.style.display = 'none';
+                };
+            } catch (error) {
+                alert("Error during generation: " + error.message);
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+
+</html>
