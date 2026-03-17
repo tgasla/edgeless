@@ -26,8 +26,6 @@ struct ModelState {
     sd_config: stable_diffusion::StableDiffusionConfig,
 }
 
-// DepthAnythingV2 contains Box<dyn Module> which isn't Sync.
-// The edgeless runtime calls handle_cast sequentially, so this is safe.
 unsafe impl Send for ModelState {}
 unsafe impl Sync for ModelState {}
 
@@ -45,32 +43,6 @@ const VAE_SCALE: f64 = 0.13025;
 const IMG2IMG_STRENGTH: f64 = 0.5;
 const PROMPT: &str = "a beautiful cinematic fantasy landscape, vibrant colors, epic volumetric lighting, detailed, ultra high quality, 4k";
 
-/// Spectral_r-like colormap: maps a [0,1] gray value to RGB.
-fn spectral_color(t: f32) -> (u8, u8, u8) {
-    // 9-stop gradient from dark blue to dark red
-    let stops: [(f32, f32, f32); 9] = [
-        (0.369, 0.310, 0.635),
-        (0.196, 0.533, 0.741),
-        (0.400, 0.761, 0.647),
-        (0.671, 0.867, 0.643),
-        (0.902, 0.961, 0.596),
-        (0.996, 0.878, 0.545),
-        (0.992, 0.682, 0.380),
-        (0.957, 0.428, 0.263),
-        (0.835, 0.243, 0.310),
-    ];
-    let t = t.clamp(0.0, 1.0);
-    let idx = (t * 8.0).min(7.999);
-    let i = idx as usize;
-    let frac = idx - i as f32;
-    let (r0, g0, b0) = stops[i];
-    let (r1, g1, b1) = stops[(i + 1).min(8)];
-    let r = r0 + (r1 - r0) * frac;
-    let g = g0 + (g1 - g0) * frac;
-    let b = b0 + (b1 - b0) * frac;
-    ((r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8)
-}
-
 impl EdgeFunction for AIEngine {
     fn handle_init(_payload: Option<&[u8]>, _init_metadata: Option<&[u8]>) {
         edgeless_function::init_logger();
@@ -82,9 +54,10 @@ impl EdgeFunction for AIEngine {
         });
         log::info!("AI Engine: Using device: {:?}", device);
 
-        // Download model weights from HuggingFace
+        // Download model weights & configs from HuggingFace
         let api = hf_hub::api::sync::Api::new().expect("Failed to create HF API");
 
+        // --- DINOv2 & Depth Anything V2 ---
         log::info!("AI Engine: Downloading DINOv2 ViT-S weights...");
         let dinov2_path = api
             .model("lmz/candle-dino-v2".into())
@@ -97,53 +70,66 @@ impl EdgeFunction for AIEngine {
             .get("depth_anything_v2_vits.safetensors")
             .expect("Failed to download depth_anything_v2_vits.safetensors");
 
-        // Build DINOv2 backbone
         let vb_dino = unsafe { VarBuilder::from_mmaped_safetensors(&[dinov2_path], DType::F32, &device).expect("Failed to load DINOv2 safetensors") };
         let dinov2_model = dinov2::vit_small(vb_dino).expect("Failed to build DINOv2");
 
-        // Build Depth Anything V2 head
         let vb_dav2 = unsafe { VarBuilder::from_mmaped_safetensors(&[dav2_path], DType::F32, &device).expect("Failed to load DAv2 safetensors") };
         let config = DepthAnythingV2Config::vit_small();
         let depth_model = DepthAnythingV2::new(Arc::new(dinov2_model), config, vb_dav2).expect("Failed to build Depth Anything V2");
 
-        // Download SDXL Turbo models
-        log::info!("AI Engine: Downloading SDXL Turbo UNet weights...");
+        // --- SDXL Turbo ---
+        log::info!("AI Engine: Downloading SDXL Turbo configs and weights...");
+
+        // UNet Config & Weights
+        let unet_config_path = api
+            .model("stabilityai/sdxl-turbo".into())
+            .get("unet/config.json")
+            .expect("Failed to download UNet config");
+        let unet_config_file = std::fs::File::open(unet_config_path).unwrap();
+        let unet_config: stable_diffusion::unet_2d::UNet2DConditionModelConfig =
+            serde_json::from_reader(unet_config_file).expect("Failed to parse UNet config");
+
         let sdxl_unet_path = api
             .model("stabilityai/sdxl-turbo".into())
             .get("sd_xl_turbo_1.0.safetensors")
             .expect("Failed to download SDXL Turbo UNet");
 
-        log::info!("AI Engine: Downloading SDXL VAE weights...");
+        // VAE Config & Weights
+        let vae_config_path = api
+            .model("madebyollin/sdxl-vae-fp16-fix".into())
+            .get("config.json")
+            .expect("Failed to download VAE config");
+        let vae_config_file = std::fs::File::open(vae_config_path).unwrap();
+        let vae_config: stable_diffusion::vae::AutoEncoderKLConfig = serde_json::from_reader(vae_config_file).expect("Failed to parse VAE config");
+
         let sdxl_vae_path = api
             .model("madebyollin/sdxl-vae-fp16-fix".into())
             .get("sdxl_vae.safetensors")
             .expect("Failed to download SDXL VAE");
 
-        log::info!("AI Engine: Downloading CLIP ViT-L/14 weights...");
+        // CLIP Weights
         let clip_path = api
             .model("openai/clip-vit-large-patch14".into())
             .get("model.safetensors")
             .expect("Failed to download CLIP ViT-L/14");
 
-        // Build SDXL config
+        // Build overall SD config
         let sd_config = stable_diffusion::StableDiffusionConfig::sdxl(None, Some(SD_HEIGHT), Some(SD_WIDTH));
 
-        // Build VAE (SD uses 3 in_channels, 3 out_channels)
+        // Build VAE
         let vb_vae = unsafe { VarBuilder::from_mmaped_safetensors(&[sdxl_vae_path], DType::F16, &device).expect("Failed to load VAE safetensors") };
-        let vae_config = stable_diffusion::vae::AutoEncoderKLConfig::default();
         let vae = stable_diffusion::vae::AutoEncoderKL::new(vb_vae, 3, 3, vae_config).expect("Failed to build VAE");
 
-        // Build UNet (Turbo model) - SD latents have 4 channels
+        // Build UNet
         let vb_unet =
             unsafe { VarBuilder::from_mmaped_safetensors(&[sdxl_unet_path], DType::F16, &device).expect("Failed to load UNet safetensors") };
-        let unet_config = stable_diffusion::unet_2d::UNet2DConditionModelConfig::sdxl();
         let unet = stable_diffusion::unet_2d::UNet2DConditionModel::new(vb_unet, 4, 4, false, unet_config).expect("Failed to build UNet");
 
-        // Build CLIP text encoder
+        // Build CLIP
         let vb_clip = unsafe { VarBuilder::from_mmaped_safetensors(&[clip_path], DType::F32, &device).expect("Failed to load CLIP safetensors") };
         let text_encoder = stable_diffusion::clip::ClipTextTransformer::new(vb_clip, &sd_config.clip).expect("Failed to build CLIP text encoder");
 
-        // Download and load Tokenizer explicitly
+        // Load Tokenizer
         log::info!("AI Engine: Downloading Tokenizer...");
         let tokenizer_path = api
             .model("openai/clip-vit-large-patch14".into())
@@ -151,7 +137,6 @@ impl EdgeFunction for AIEngine {
             .expect("Failed to download tokenizer.json");
         let tokenizer = tokenizers::Tokenizer::from_file(tokenizer_path).expect("Failed to load tokenizer");
 
-        // Tokenize and encode prompt
         log::info!("AI Engine: Encoding prompt: \"{}\"", PROMPT);
         let tokens = tokenizer.encode(PROMPT, true).expect("Failed to encode prompt");
         let mut input_ids = vec![0u32; 77];
@@ -184,7 +169,7 @@ impl EdgeFunction for AIEngine {
             }
         };
 
-        // 1. Parse the JSON HTTP response
+        // Parse JSON & Decode Image
         let msg_str = core::str::from_utf8(msg).unwrap_or("");
         let input_bytes: Vec<u8> = match serde_json::from_str::<serde_json::Value>(msg_str) {
             Ok(http_resp) => {
@@ -197,10 +182,9 @@ impl EdgeFunction for AIEngine {
             Err(_) => return,
         };
 
-        // 2. Decode the image
         let img = image::load_from_memory(&input_bytes).expect("Failed to decode image");
 
-        // 3. Resize and convert to tensor
+        // Depth Anything Processing
         let resized = img.resize_exact(DINO_IMG_SIZE as u32, DINO_IMG_SIZE as u32, image::imageops::FilterType::Triangle);
         let rgb = resized.to_rgb8();
         let raw: Vec<f32> = rgb.as_raw().iter().map(|&b| b as f32).collect();
@@ -214,7 +198,6 @@ impl EdgeFunction for AIEngine {
             .to_dtype(DType::F32)
             .unwrap();
 
-        // Normalize
         let max_val = Tensor::try_from(255.0f32)
             .unwrap()
             .to_device(&state.device)
@@ -233,17 +216,15 @@ impl EdgeFunction for AIEngine {
             .unwrap();
         let tensor = tensor.sub(&mean).unwrap().div(&std_t).unwrap();
 
-        // 4. Run forward pass
         let depth = state.depth_model.forward(&tensor).expect("Depth inference failed");
 
-        // 5. Prepare depth for SDXL img2img
+        // Convert depth to [-1, 1] RGB for SD img2img
         let depth_512 = depth.interpolate2d(SD_HEIGHT, SD_WIDTH).unwrap();
         let flat: Vec<f32> = depth_512.flatten_all().unwrap().to_vec1().unwrap();
         let min_val = flat.iter().cloned().fold(f32::INFINITY, f32::min);
         let max_val = flat.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         let range = (max_val - min_val).max(1e-6);
 
-        // Fixed f64 to f32 cast mapping
         let normalized: Vec<f32> = flat.iter().map(|&v| ((v - min_val) / range * 2.0 - 1.0) as f32).collect();
 
         let depth_tensor = Tensor::from_vec(
@@ -255,38 +236,32 @@ impl EdgeFunction for AIEngine {
         .to_dtype(DType::F32)
         .unwrap();
 
-        // 6. VAE encode depth to latent (DiagonalGaussianDistribution -> mean)
+        // VAE Encode & Sample Latents
         let depth_encoded = state.vae.encode(&depth_tensor).expect("Failed to encode with VAE");
-        let latents = depth_encoded.mean().affine(VAE_SCALE, 0.0).expect("Failed to scale");
+        let latents = depth_encoded.sample().unwrap().affine(VAE_SCALE, 0.0).expect("Failed to scale");
 
-        // 7. Add noise for img2img
+        // Add Noise
         let timestep = ((1.0 - IMG2IMG_STRENGTH) * 1000.0) as u32;
         let noise = Tensor::randn(0f32, 1.0, latents.shape(), &state.device).unwrap();
 
-        // Used standard affine operations instead of .mul()
         let latents_noisy = latents
             .affine(1.0 - IMG2IMG_STRENGTH, 0.0)
             .unwrap()
             .add(&noise.affine(IMG2IMG_STRENGTH, 0.0).unwrap())
             .unwrap();
 
-        // 8. Run UNet (Pass timestep as a 1D tensor)
-        let timestep_tensor = Tensor::new(&[timestep as f32], &state.device).unwrap();
+        // Run UNet (Passing f64 directly for timestep)
         let context = state.text_embeddings.unsqueeze(0).unwrap();
+        let noise_pred = state.unet.forward(&latents_noisy, timestep as f64, &context).expect("Failed to run UNet");
 
-        let noise_pred = state
-            .unet
-            .forward(&latents_noisy, &timestep_tensor, &context)
-            .expect("Failed to run UNet");
-
-        // 9. Denoise
+        // Denoise
         let denoised = latents_noisy.sub(&noise_pred).unwrap();
 
-        // 10. VAE decode to RGB (scale back up first)
+        // VAE Decode to RGB
         let scaled_latents = denoised.affine(1.0 / VAE_SCALE, 0.0).unwrap();
         let rgb_output = state.vae.decode(&scaled_latents).expect("Failed to decode with VAE");
 
-        // 11. Convert tensor to image (removed extra parens)
+        // Convert Tensor -> PNG Bytes
         let rgb_tensor = rgb_output.squeeze(0).unwrap();
         let rgb_data: Vec<u8> = rgb_tensor
             .permute((1, 2, 0))
@@ -301,14 +276,13 @@ impl EdgeFunction for AIEngine {
 
         let img_buf = image::RgbImage::from_raw(SD_WIDTH as u32, SD_HEIGHT as u32, rgb_data).expect("Failed to create image buffer");
 
-        // 12. Encode as PNG
         let mut png_bytes: Vec<u8> = Vec::new();
         {
             let encoder = image::codecs::png::PngEncoder::new(&mut png_bytes);
             image::ImageEncoder::write_image(encoder, img_buf.as_raw(), SD_WIDTH as u32, SD_HEIGHT as u32, image::ColorType::Rgb8).unwrap();
         }
 
-        // 13. Send
+        // Send via Edgeless Output Channel
         let payload = ImagePayload {
             frame_id,
             png_data: png_bytes.clone(),
