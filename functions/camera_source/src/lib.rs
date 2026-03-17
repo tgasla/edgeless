@@ -10,7 +10,7 @@ impl EdgeFunction for CameraSource {
         edgeless_function::init_logger();
         log::info!("Camera Source: Initialized - will fetch frames from local HTTP server");
         // Kick off the frame capture loop (need to wait for output_mapping patch)
-        delayed_cast(8000, "self", b"capture");
+        delayed_cast(20000, "self", b"capture");
     }
 
     fn handle_cast(_src: InstanceId, msg: &[u8]) {
@@ -38,13 +38,17 @@ impl EdgeFunction for CameraSource {
                     // Forward it directly to ai_engine — do NOT extract binary body,
                     // because the WASM runtime requires all cast payloads to be valid UTF-8.
                     let resp_str = core::str::from_utf8(&resp_bytes).unwrap_or("");
-                    
+
                     // Quick check: parse just to verify status
                     match edgeless_http::response_from_string(resp_str) {
                         Ok(http_resp) => {
                             if http_resp.status == 200 {
                                 let body_len = http_resp.body.as_ref().map(|b| b.len()).unwrap_or(0);
-                                log::info!("Camera Source: Got image frame {} ({} body bytes), forwarding to AI Engine", frame_num, body_len);
+                                log::info!(
+                                    "Camera Source: Got image frame {} ({} body bytes), forwarding to AI Engine",
+                                    frame_num,
+                                    body_len
+                                );
                                 // Forward the full serialized HTTP response as UTF-8 string
                                 cast("raw_image_channel", resp_str.as_bytes());
                             } else {
