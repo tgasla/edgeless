@@ -78,29 +78,12 @@ impl EdgeFunction for AIEngine {
         let depth_model = DepthAnythingV2::new(Arc::new(dinov2_model), config, vb_dav2).expect("Failed to build Depth Anything V2");
 
         // --- SDXL Turbo ---
-        log::info!("AI Engine: Downloading SDXL Turbo configs and weights...");
-
-        // UNet Config & Weights
-        let unet_config_path = api
-            .model("stabilityai/sdxl-turbo".into())
-            .get("unet/config.json")
-            .expect("Failed to download UNet config");
-        let unet_config_file = std::fs::File::open(unet_config_path).unwrap();
-        let unet_config: stable_diffusion::unet_2d::UNet2DConditionModelConfig =
-            serde_json::from_reader(unet_config_file).expect("Failed to parse UNet config");
+        log::info!("AI Engine: Downloading SDXL Turbo weights...");
 
         let sdxl_unet_path = api
             .model("stabilityai/sdxl-turbo".into())
             .get("sd_xl_turbo_1.0.safetensors")
             .expect("Failed to download SDXL Turbo UNet");
-
-        // VAE Config & Weights
-        let vae_config_path = api
-            .model("madebyollin/sdxl-vae-fp16-fix".into())
-            .get("config.json")
-            .expect("Failed to download VAE config");
-        let vae_config_file = std::fs::File::open(vae_config_path).unwrap();
-        let vae_config: stable_diffusion::vae::AutoEncoderKLConfig = serde_json::from_reader(vae_config_file).expect("Failed to parse VAE config");
 
         let sdxl_vae_path = api
             .model("madebyollin/sdxl-vae-fp16-fix".into())
@@ -113,17 +96,30 @@ impl EdgeFunction for AIEngine {
             .get("model.safetensors")
             .expect("Failed to download CLIP ViT-L/14");
 
-        // Build overall SD config
+        // Build overall SD config first — this contains the UNet and VAE configs!
         let sd_config = stable_diffusion::StableDiffusionConfig::sdxl(None, Some(SD_HEIGHT), Some(SD_WIDTH));
 
         // Build VAE
         let vb_vae = unsafe { VarBuilder::from_mmaped_safetensors(&[sdxl_vae_path], DType::F16, &device).expect("Failed to load VAE safetensors") };
-        let vae = stable_diffusion::vae::AutoEncoderKL::new(vb_vae, 3, 3, vae_config).expect("Failed to build VAE");
+        let vae = stable_diffusion::vae::AutoEncoderKL::new(
+            vb_vae,
+            3,
+            3,
+            sd_config.autoencoder.clone(), // Extracted directly from sd_config
+        )
+        .expect("Failed to build VAE");
 
         // Build UNet
         let vb_unet =
             unsafe { VarBuilder::from_mmaped_safetensors(&[sdxl_unet_path], DType::F16, &device).expect("Failed to load UNet safetensors") };
-        let unet = stable_diffusion::unet_2d::UNet2DConditionModel::new(vb_unet, 4, 4, false, unet_config).expect("Failed to build UNet");
+        let unet = stable_diffusion::unet_2d::UNet2DConditionModel::new(
+            vb_unet,
+            4,
+            4,
+            false,
+            sd_config.unet.clone(), // Extracted directly from sd_config
+        )
+        .expect("Failed to build UNet");
 
         // Build CLIP
         let vb_clip = unsafe { VarBuilder::from_mmaped_safetensors(&[clip_path], DType::F32, &device).expect("Failed to load CLIP safetensors") };
