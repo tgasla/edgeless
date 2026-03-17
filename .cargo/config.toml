@@ -15,4 +15,3 @@ rustflags = ["-C", "link-args=-rdynamic", "-C", "target-feature=+fullfp16"]
 # rustflags = ["-C", "link-args=-dynamiclib"]
 
 [env]
-RUSTUP_TOOLCHAIN = { value = "stable", force = true }
