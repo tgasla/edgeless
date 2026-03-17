@@ -494,6 +494,8 @@ async fn main() -> anyhow::Result<()> {
                         }
 
                         let mut target_rustc_args = Vec::new();
+                        target_rustc_args.push("-Z".to_string());
+                        target_rustc_args.push("unstable-options".to_string());
                         match platform {
                             Platform::MAC_ARM | Platform::MAC_X86 => {
                                 target_rustc_args.push("-C".to_string());
