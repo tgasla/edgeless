@@ -101,25 +101,16 @@ impl EdgeFunction for AIEngine {
 
         // Build VAE
         let vb_vae = unsafe { VarBuilder::from_mmaped_safetensors(&[sdxl_vae_path], DType::F16, &device).expect("Failed to load VAE safetensors") };
-        let vae = stable_diffusion::vae::AutoEncoderKL::new(
-            vb_vae,
-            3,
-            3,
-            sd_config.autoencoder_config().clone(), // <-- Using the getter method
-        )
-        .expect("Failed to build VAE");
+        // Use the built-in SDXL VAE configuration
+        let vae_cfg = stable_diffusion::vae::AutoEncoderKLConfig::sdxl();
+        let vae = stable_diffusion::vae::AutoEncoderKL::new(vb_vae, 3, 3, vae_cfg).expect("Failed to build VAE");
 
         // Build UNet
         let vb_unet =
             unsafe { VarBuilder::from_mmaped_safetensors(&[sdxl_unet_path], DType::F16, &device).expect("Failed to load UNet safetensors") };
-        let unet = stable_diffusion::unet_2d::UNet2DConditionModel::new(
-            vb_unet,
-            4,
-            4,
-            false,
-            sd_config.unet_config().clone(), // <-- Using the getter method
-        )
-        .expect("Failed to build UNet");
+        // Use the built-in SDXL UNet configuration
+        let unet_cfg = stable_diffusion::unet_2d::UNet2DConditionModelConfig::sdxl();
+        let unet = stable_diffusion::unet_2d::UNet2DConditionModel::new(vb_unet, 4, 4, false, unet_cfg).expect("Failed to build UNet");
 
         // Build CLIP
         let vb_clip = unsafe { VarBuilder::from_mmaped_safetensors(&[clip_path], DType::F32, &device).expect("Failed to load CLIP safetensors") };
