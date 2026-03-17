@@ -24,7 +24,6 @@ struct ModelState {
     vae: stable_diffusion::vae::AutoEncoderKL,
     text_embeddings: Tensor,
 }
-}
 
 unsafe impl Send for ModelState {}
 unsafe impl Sync for ModelState {}
@@ -100,9 +99,7 @@ impl EdgeFunction for AIEngine {
         let sd_config = StableDiffusionConfig::sdxl_turbo(None, Some(SD_HEIGHT), Some(SD_WIDTH));
 
         // Build VAE using config's builder
-        let vae = sd_config
-            .build_vae(&sdxl_vae_path, &device, DType::F16)
-            .expect("Failed to build VAE");
+        let vae = sd_config.build_vae(&sdxl_vae_path, &device, DType::F16).expect("Failed to build VAE");
 
         // Build UNet using config's builder
         let unet = sd_config
@@ -110,13 +107,8 @@ impl EdgeFunction for AIEngine {
             .expect("Failed to build UNet");
 
         // Build CLIP manually (config doesn't expose this)
-        let vb_clip = unsafe {
-            VarBuilder::from_mmaped_safetensors(&[clip_path], DType::F32, &device)
-                .expect("Failed to load CLIP safetensors")
-        };
-        let text_encoder =
-            stable_diffusion::clip::ClipTextTransformer::new(vb_clip, &sd_config.clip)
-                .expect("Failed to build CLIP text encoder");
+        let vb_clip = unsafe { VarBuilder::from_mmaped_safetensors(&[clip_path], DType::F32, &device).expect("Failed to load CLIP safetensors") };
+        let text_encoder = stable_diffusion::clip::ClipTextTransformer::new(vb_clip, &sd_config.clip).expect("Failed to build CLIP text encoder");
 
         // Load Tokenizer
         log::info!("AI Engine: Downloading Tokenizer...");

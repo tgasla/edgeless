@@ -14,7 +14,7 @@ strip = true
 name = "gpu_client"
 version = "0.1.0"
 authors = ["Edgeless Assistant"]
-edition = "2021"
+edition = "2024"
 
 [lib]
 name = "gpu_client"
