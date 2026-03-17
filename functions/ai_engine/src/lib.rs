@@ -2,7 +2,7 @@ use candle_core::{DType, Device, Module, Tensor};
 use candle_nn::VarBuilder;
 use candle_transformers::models::depth_anything_v2::{DepthAnythingV2, DepthAnythingV2Config};
 use candle_transformers::models::dinov2;
-use candle_transformers::models::stable_diffusion;
+use candle_transformers::models::stable_diffusion::{self, AutoEncoderConfig, CLIPConfig, UNetConfig};
 use edgeless_function::*;
 use std::sync::{Arc, Mutex};
 
@@ -23,7 +23,7 @@ struct ModelState {
     unet: stable_diffusion::unet_2d::UNet2DConditionModel,
     vae: stable_diffusion::vae::AutoEncoderKL,
     text_embeddings: Tensor,
-    sd_config: stable_diffusion::StableDiffusionConfig,
+    // Removed sd_config - configs created inline below
 }
 
 unsafe impl Send for ModelState {}
@@ -96,34 +96,49 @@ impl EdgeFunction for AIEngine {
             .get("model.safetensors")
             .expect("Failed to download CLIP ViT-L/14");
 
-        // Build overall SD config first — this contains the UNet and VAE configs!
-        let sd_config = stable_diffusion::StableDiffusionConfig::sdxl(None, Some(SD_HEIGHT), Some(SD_WIDTH));
+        // Build SDXL configs directly
+        let vae_config = AutoEncoderConfig {
+            latent_channels: 4,
+            hidden_size: 2560,
+            in_channels: 3,
+            out_channels: 3,
+            block_out_channels: [128, 256, 512, 512],
+            layers_per_block: 2,
+            norm_num_groups: 32,
+            act_fn: "swish".to_string(),
+        };
+
+        let unet_config = UNetConfig {
+            in_channels: 4,
+            out_channels: 4,
+            block_out_channels: [320, 640, 1280],
+            layers_per_block: 2,
+            attention_head_dim: Some(8),
+            cross_attention_dim: 768,
+            ..Default::default()
+        };
+
+        let clip_config = CLIPConfig {
+            hidden_size: 768,
+            intermediate_size: 3072,
+            num_hidden_layers: 12,
+            num_attention_heads: 12,
+            vocab_size: 49408,
+            max_position_embeddings: 77,
+        };
 
         // Build VAE
         let vb_vae = unsafe { VarBuilder::from_mmaped_safetensors(&[sdxl_vae_path], DType::F16, &device).expect("Failed to load VAE safetensors") };
-        let vae = stable_diffusion::vae::AutoEncoderKL::new(
-            vb_vae,
-            3,
-            3,
-            sd_config.autoencoder.clone(), // <-- Directly accessing the public field!
-        )
-        .expect("Failed to build VAE");
+        let vae = stable_diffusion::vae::AutoEncoderKL::new(vb_vae, 3, 3, vae_config).expect("Failed to build VAE");
 
         // Build UNet
         let vb_unet =
             unsafe { VarBuilder::from_mmaped_safetensors(&[sdxl_unet_path], DType::F16, &device).expect("Failed to load UNet safetensors") };
-        let unet = stable_diffusion::unet_2d::UNet2DConditionModel::new(
-            vb_unet,
-            4,
-            4,
-            false,
-            sd_config.unet.clone(), // <-- Directly accessing the public field!
-        )
-        .expect("Failed to build UNet");
+        let unet = stable_diffusion::unet_2d::UNet2DConditionModel::new(vb_unet, 4, 4, false, unet_config).expect("Failed to build UNet");
 
         // Build CLIP
         let vb_clip = unsafe { VarBuilder::from_mmaped_safetensors(&[clip_path], DType::F32, &device).expect("Failed to load CLIP safetensors") };
-        let text_encoder = stable_diffusion::clip::ClipTextTransformer::new(vb_clip, &sd_config.clip).expect("Failed to build CLIP text encoder");
+        let text_encoder = stable_diffusion::clip::ClipTextTransformer::new(vb_clip, &clip_config).expect("Failed to build CLIP text encoder");
 
         // Load Tokenizer
         log::info!("AI Engine: Downloading Tokenizer...");
@@ -150,7 +165,6 @@ impl EdgeFunction for AIEngine {
             unet,
             vae,
             text_embeddings,
-            sd_config,
         });
     }
 
