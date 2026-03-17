@@ -4,7 +4,7 @@ rustflags = ["-C", "link-args=-rdynamic"]
 
 [target.aarch64-unknown-linux-gnu]
 linker = "aarch64-linux-gnu-gcc"
-rustflags = ["-C", "link-args=-rdynamic", "-C", "target-feature=+fullfp16"]
+rustflags = ["-C", "link-args=-rdynamic", "-C", "target-feature=+fp16"]
 
 # [target.aarch64-apple-darwin]
 # linker = "clang"

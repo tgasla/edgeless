@@ -31,16 +31,16 @@ impl Visualizer {
         let response = call("http_out", edgeless_http::request_to_string(&http_req).as_bytes());
 
         match response {
-            CallRet::Reply(_) => {
-                log::info!("Visualizer: Frame {} saved successfully", frame_id);
-            }
-            CallRet::NoReply => {
-                log::info!("Visualizer: No reply when saving frame {}", frame_id);
+            CallRet::Reply(reply_data) => {
+                log::info!("Visualizer: Frame {} saved successfully!", frame_id);
             }
             CallRet::Err => {
-                log::info!("Visualizer: Error saving frame {}", frame_id);
+                log::error!("Visualizer: Network error! Failed to reach the Python server for frame {}.", frame_id);
             }
+            CallRet::NoReply => {}
         }
+
+        log::info!("Visualizer: Frame {} sent to http_out for saving", frame_id);
     }
 }
 
@@ -60,8 +60,12 @@ impl EdgeFunction for Visualizer {
         if msg_str == "ready" {
             log::info!("Visualizer: Ready signal received, processing queued frames");
             READY.store(true, std::sync::atomic::Ordering::SeqCst);
-            // Process any queued frames
-            let frames = PENDING_FRAMES.lock().unwrap().clone();
+
+            // Lock, clone, and CLEAR to free up WASM memory
+            let mut pending = PENDING_FRAMES.lock().unwrap();
+            let frames = pending.clone();
+            pending.clear();
+
             for (frame_id, png_data) in frames {
                 Self::save_frame(frame_id, png_data);
             }

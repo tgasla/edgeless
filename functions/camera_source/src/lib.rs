@@ -10,7 +10,7 @@ impl EdgeFunction for CameraSource {
         edgeless_function::init_logger();
         log::info!("Camera Source: Initialized - will fetch frames from local HTTP server");
         // Kick off the frame capture loop (need to wait for output_mapping patch)
-        delayed_cast(20000, "self", b"capture");
+        delayed_cast(30000, "self", b"capture");
     }
 
     fn handle_cast(_src: InstanceId, msg: &[u8]) {
@@ -68,8 +68,8 @@ impl EdgeFunction for CameraSource {
                 }
             }
 
-            // Schedule next frame capture (every 2 seconds)
-            delayed_cast(2000, "self", b"capture");
+            // Schedule next frame capture (every 4 seconds)
+            delayed_cast(4000, "self", b"capture");
         }
     }
 
