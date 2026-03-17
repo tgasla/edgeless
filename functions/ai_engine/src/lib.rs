@@ -81,27 +81,26 @@ impl EdgeFunction for AIEngine {
 
         let sdxl_unet_path = api
             .model("stabilityai/sdxl-turbo".into())
-            .get("sd_xl_turbo_1.0.safetensors")
+            .get("unet/diffusion_pytorch_model.safetensors")
             .expect("Failed to download SDXL Turbo UNet");
 
         let sdxl_vae_path = api
             .model("madebyollin/sdxl-vae-fp16-fix".into())
-            .get("sdxl_vae.safetensors")
+            .get("diffusion_pytorch_model.safetensors")
             .expect("Failed to download SDXL VAE");
 
-        // CLIP Weights
         let clip_path = api
             .model("openai/clip-vit-large-patch14".into())
             .get("model.safetensors")
             .expect("Failed to download CLIP ViT-L/14");
 
-        // Build SDXL config and use its builder methods
+        // Build SDXL config
         let sd_config = StableDiffusionConfig::sdxl_turbo(None, Some(SD_HEIGHT), Some(SD_WIDTH));
 
-        // Build VAE using config's builder
+        // Build VAE
         let vae = sd_config.build_vae(&sdxl_vae_path, &device, DType::F16).expect("Failed to build VAE");
 
-        // Build UNet using config's builder
+        // Build UNet
         let unet = sd_config
             .build_unet(&sdxl_unet_path, &device, 4, false, DType::F16)
             .expect("Failed to build UNet");

@@ -1,10 +1,10 @@
 [target.x86_64-unknown-linux-gnu]
 linker = "x86_64-linux-gnu-gcc"
-rustflags = ["-C", "link-args=-rdynamic", "-Z", "unstable-options"]
+rustflags = ["-C", "link-args=-rdynamic"]
 
 [target.aarch64-unknown-linux-gnu]
 linker = "aarch64-linux-gnu-gcc"
-rustflags = ["-C", "link-args=-rdynamic", "-Z", "unstable-options"]
+rustflags = ["-C", "link-args=-rdynamic", "-C", "target-feature=+fullfp16"]
 
 # [target.aarch64-apple-darwin]
 # linker = "clang"
@@ -15,3 +15,4 @@ rustflags = ["-C", "link-args=-rdynamic", "-Z", "unstable-options"]
 # rustflags = ["-C", "link-args=-dynamiclib"]
 
 [env]
+RUSTUP_TOOLCHAIN = { value = "stable", force = true }
