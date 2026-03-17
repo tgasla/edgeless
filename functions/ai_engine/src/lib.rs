@@ -105,7 +105,7 @@ impl EdgeFunction for AIEngine {
             vb_vae,
             3,
             3,
-            sd_config.autoencoder.clone(), // Extracted directly from sd_config
+            sd_config.autoencoder_config().clone(), // <-- Using the getter method
         )
         .expect("Failed to build VAE");
 
@@ -117,7 +117,7 @@ impl EdgeFunction for AIEngine {
             4,
             4,
             false,
-            sd_config.unet.clone(), // Extracted directly from sd_config
+            sd_config.unet_config().clone(), // <-- Using the getter method
         )
         .expect("Failed to build UNet");
 
