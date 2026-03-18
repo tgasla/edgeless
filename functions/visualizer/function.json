@@ -1,8 +1,0 @@
-{
-  "function_type": "RUST_WASM",
-  "id": "visualizer",
-  "version": "0.1",
-  "outputs": [
-    "http_out"
-  ]
-}
