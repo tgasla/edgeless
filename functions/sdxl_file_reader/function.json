@@ -1,6 +1,6 @@
 {
     "function_type": "RUST_WASM",
-    "id": "camera_source",
+    "id": "sdxl_file_reader",
     "version": "0.1",
     "outputs": [
         "raw_image_channel",

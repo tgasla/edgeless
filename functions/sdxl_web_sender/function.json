@@ -1,0 +1,8 @@
+{
+    "function_type": "RUST_WASM",
+    "id": "sdxl_web_sender",
+    "version": "0.1",
+    "outputs": [
+        "http_out"
+    ]
+}

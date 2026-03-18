@@ -1,7 +1,7 @@
 [workspace]
 
 [package]
-name = "visualizer"
+name = "sdxl_file_reader"
 version = "0.1.0"
 edition = "2024"
 

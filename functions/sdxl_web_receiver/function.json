@@ -1,0 +1,8 @@
+{
+    "function_type": "RUST_WASM",
+    "id": "sdxl_web_receiver",
+    "version": "0.1",
+    "outputs": [
+        "ai_channel"
+    ]
+}

@@ -1,7 +1,7 @@
 [workspace]
 
 [package]
-name = "camera_source"
+name = "sdxl_web_receiver"
 version = "0.1.0"
 edition = "2024"
 

@@ -1,0 +1,8 @@
+{
+    "function_type": "RUST_WASM",
+    "id": "sdxl_inference_b64_cuda",
+    "version": "0.1",
+    "outputs": [
+        "transformed_image_channel"
+    ]
+}
