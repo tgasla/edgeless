@@ -1,6 +1,9 @@
 use edgeless_function::*;
 use edgeless_http::*;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::OnceLock;
+
+static SESSION_ID: OnceLock<String> = OnceLock::new();
 
 static READY: AtomicBool = AtomicBool::new(false);
 
@@ -43,6 +46,28 @@ impl EdgeFunction for SdxlWebSender {
             CallRet::Reply(_) => log::info!("WebSender: Response sent to webhook"),
             CallRet::Err => log::error!("WebSender: Failed to reach webhook"),
             CallRet::NoReply => {}
+        }
+
+        // Also save to database for history
+        // Parse the message to extract session_id, source_image, prompt, and generated_image
+        if let Ok(data) = serde_json::from_str::<serde_json::Value>(msg_str) {
+            let session_id = data.get("id").and_then(|v| v.as_str()).unwrap_or("default").to_string();
+            let source_image = data.get("source_image_b64").and_then(|v| v.as_str()).unwrap_or("");
+            let prompt = data.get("prompt").and_then(|v| v.as_str()).unwrap_or("");
+            let generated_image = data.get("image_base64").and_then(|v| v.as_str()).unwrap_or("");
+            let timestep = data.get("timestep").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+
+            let save_request = serde_json::json!({
+                "session_id": session_id,
+                "source_image_b64": source_image,
+                "prompt": prompt,
+                "generated_image_b64": generated_image,
+                "timestep": timestep
+            });
+
+            let save_msg = format!("SAVE:{}", serde_json::to_string(&save_request).unwrap_or_default());
+            cast("db_writer", save_msg.as_bytes());
+            log::info!("WebSender: Sent data to db_writer for history");
         }
     }
     fn handle_call(_src: InstanceId, _msg: &[u8]) -> CallRet {

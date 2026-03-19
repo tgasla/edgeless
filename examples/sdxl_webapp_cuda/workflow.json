@@ -30,7 +30,8 @@
                 ]
             },
             "output_mapping": {
-                "transformed_image_channel": "sdxl_web_sender"
+                "transformed_image_channel": "sdxl_web_sender",
+                "db_channel": "db_writer"
             },
             "annotations": {
                 "label_match_all": "os=linux,arch=arm"
@@ -48,10 +49,27 @@
                 ]
             },
             "output_mapping": {
-                "http_out": "sdxl_webhook_egress"
+                "http_out": "sdxl_webhook_egress",
+                "db_writer": "db_writer"
             },
             "annotations": {
                 "label_match_all": "os=darwin"
+            }
+        },
+        {
+            "name": "db_writer",
+            "class_specification": {
+                "id": "db_writer",
+                "function_type": "RUST_WASM",
+                "version": "0.1",
+                "code": "../../functions/image_history_db/image_history_db.wasm",
+                "outputs": []
+            },
+            "output_mapping": {
+                "database": "sqlx_db"
+            },
+            "annotations": {
+                "label_match_all": "os=linux,arch=x86_64"
             }
         }
     ],
@@ -76,6 +94,17 @@
             "configurations": {},
             "annotations": {
                 "label_match_all": "os=darwin"
+            }
+        },
+        {
+            "name": "sqlx_db",
+            "class_type": "sqlx",
+            "output_mapping": {},
+            "configurations": {
+                "url": "sqlite://sqlite.db"
+            },
+            "annotations": {
+                "label_match_all": "os=linux,arch=x86_64"
             }
         }
     ],
