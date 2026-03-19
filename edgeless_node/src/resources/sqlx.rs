@@ -139,6 +139,9 @@ impl SqlxResource {
                 } else if message_data.to_string().contains("INSERT")
                     || message_data.to_string().contains("UPDATE")
                     || message_data.to_string().contains("DELETE")
+                    || message_data.to_string().contains("CREATE")
+                    || message_data.to_string().contains("DROP")
+                    || message_data.to_string().contains("ALTER")
                 {
                     let result = sqlx::query(message_data.as_str()).bind(workflow_id).execute(&db).await;
                     match result {

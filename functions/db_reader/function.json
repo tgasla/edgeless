@@ -1,9 +1,8 @@
 {
-    "id": "db_writer",
     "function_type": "RUST_ARM",
+    "id": "db_reader",
     "version": "0.1",
-    "build": "Cargo.toml",
     "outputs": [
-        "database"
+        "history_result"
     ]
 }

@@ -3,6 +3,7 @@
     "id": "sdxl_web_sender",
     "version": "0.1",
     "outputs": [
-        "http_out"
+        "http_out",
+        "db_writer"
     ]
 }

@@ -13,8 +13,8 @@ struct WebPayload {
     prompt: String,
     timestep: u32,
     image_base64: String,
-    #[serde(rename = "source_image_b64")]
-    source_image: String,
+    #[serde(rename = "source_image_b64", default)]
+    source_image: Option<String>,
 }
 /// Global model state
 struct ModelState {
@@ -234,7 +234,7 @@ impl EdgeFunction for AIEngine {
                 prompt: web_payload.prompt,
                 timestep: web_payload.timestep,
                 image_base64: BASE64_STANDARD.encode(&png_bytes),
-                source_image: web_payload.image_base64,
+                source_image: Some(web_payload.image_base64),
             };
             let json_payload = serde_json::to_string(&payload)?;
 

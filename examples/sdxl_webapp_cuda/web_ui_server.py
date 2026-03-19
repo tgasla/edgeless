@@ -220,6 +220,90 @@ HTML_UI = """<!DOCTYPE html>
             flex-direction: column;
             gap: 8px;
         }
+
+        /* History Panel Styles */
+        #historyPanel {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #444;
+        }
+
+        #historyBtn {
+            background: #28a745;
+            margin-bottom: 10px;
+        }
+
+        #historyBtn:hover {
+            background: #218838;
+        }
+
+        #historyContent {
+            display: none;
+            max-height: 400px;
+            overflow-y: auto;
+            background: #2c2c2c;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        #historyContent.history-loading {
+            display: block;
+            text-align: center;
+            color: #888;
+            padding: 20px;
+        }
+
+        .history-item {
+            background: #1e1e1e;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+
+        .history-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .history-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .history-item-prompt {
+            font-size: 12px;
+            color: #aaa;
+            margin: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 70%;
+        }
+
+        .history-item-time {
+            font-size: 10px;
+            color: #666;
+        }
+
+        .history-item-images {
+            display: flex;
+            gap: 10px;
+        }
+
+        .history-item-images img {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 4px;
+            background: #333;
+        }
+
+        .history-empty {
+            text-align: center;
+            color: #666;
+            padding: 20px;
+        }
     </style>
 </head>
 
@@ -258,6 +342,14 @@ HTML_UI = """<!DOCTYPE html>
         <div id="loading">Processing in Edgeless Cluster...<small>This might take a few seconds</small></div>
 
         <img id="resultImage" alt="Generated Output">
+    </div>
+
+    <div class="container" id="historyPanel">
+        <h2>Generation History</h2>
+        <button id="historyBtn">Load History</button>
+        <div id="historyContent">
+            <div class="history-empty">No history yet. Generate some images first!</div>
+        </div>
     </div>
 
     <script>
@@ -363,6 +455,63 @@ HTML_UI = """<!DOCTYPE html>
                 loading.style.display = 'none';
             }
         });
+
+        // History button handler
+        const historyBtn = document.getElementById('historyBtn');
+        const historyContent = document.getElementById('historyContent');
+
+        historyBtn.addEventListener('click', async () => {
+            historyBtn.disabled = true;
+            historyContent.className = 'history-loading';
+            historyContent.innerHTML = 'Loading history...';
+            historyContent.style.display = 'block';
+
+            try {
+                const response = await fetch('/history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+
+                if (!response.ok) throw new Error("Server returned " + response.status);
+
+                const data = await response.json();
+                displayHistory(data);
+            } catch (error) {
+                historyContent.innerHTML = '<div class="history-empty">Error loading history: ' + error.message + '</div>';
+            }
+
+            historyBtn.disabled = false;
+        });
+
+        function displayHistory(items) {
+            if (!items || items.length === 0) {
+                historyContent.innerHTML = '<div class="history-empty">No history yet. Generate some images first!</div>';
+                return;
+            }
+
+            let html = '';
+            for (const item of items) {
+                const prompt = item.prompt || 'No prompt';
+                const time = item.created_at || 'Unknown time';
+                const sourceImg = item.source_image_b64 ? 'data:image/png;base64,' + item.source_image_b64 : '';
+                const generatedImg = item.generated_image_b64 ? 'data:image/png;base64,' + item.generated_image_b64 : '';
+
+                html += `
+                    <div class="history-item">
+                        <div class="history-item-header">
+                            <p class="history-item-prompt" title="${prompt}">${prompt}</p>
+                            <span class="history-item-time">${time}</span>
+                        </div>
+                        <div class="history-item-images">
+                            ${sourceImg ? `<img src="${sourceImg}" alt="Source" title="Source Image">` : '<img alt="No source">'}
+                            ${generatedImg ? `<img src="${generatedImg}" alt="Generated" title="Generated Image">` : '<img alt="No result">'}
+                        </div>
+                    </div>
+                `;
+            }
+            historyContent.innerHTML = html;
+        }
     </script>
 </body>
 
@@ -420,6 +569,27 @@ class BridgeHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.end_headers()
             self.wfile.write(b"OK")
+
+        # 3. Browser asks for history
+        elif self.path == '/history':
+            # Forward history request to Edgeless http-ingress using GET
+            # The http-ingress will wrap this into EdgelessHTTPRequest and call sdxl_web_receiver
+            req = urllib.request.Request(
+                "http://127.0.0.1:7007/history",
+                method='GET'
+            )
+            try:
+                response = urllib.request.urlopen(req, timeout=30)
+                response_data = response.read().decode()
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(response_data.encode())
+            except Exception as e:
+                self.send_response(500)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
         else:
             self.send_response(404)
             self.end_headers()

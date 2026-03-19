@@ -3,6 +3,7 @@
     "id": "sdxl_inference_b64_cuda",
     "version": "0.1",
     "outputs": [
-        "transformed_image_channel"
+        "transformed_image_channel",
+        "db_channel"
     ]
 }

@@ -8,11 +8,13 @@
                 "version": "0.1",
                 "code": "../../functions/sdxl_web_receiver/sdxl_web_receiver.wasm",
                 "outputs": [
-                    "ai_channel"
+                    "ai_channel",
+                    "db_reader"
                 ]
             },
             "output_mapping": {
-                "ai_channel": "sdxl_inference_b64_cuda"
+                "ai_channel": "sdxl_inference_b64_cuda",
+                "db_reader": "db_reader"
             },
             "annotations": {
                 "label_match_all": "os=darwin"
@@ -26,7 +28,8 @@
                 "version": "0.1",
                 "code": "../../functions/sdxl_inference_b64_cuda/sdxl_inference_b64_cuda_aarch.so",
                 "outputs": [
-                    "transformed_image_channel"
+                    "transformed_image_channel",
+                    "db_channel"
                 ]
             },
             "output_mapping": {
@@ -45,7 +48,8 @@
                 "version": "0.1",
                 "code": "../../functions/sdxl_web_sender/sdxl_web_sender.wasm",
                 "outputs": [
-                    "http_out"
+                    "http_out",
+                    "db_writer"
                 ]
             },
             "output_mapping": {
@@ -60,9 +64,9 @@
             "name": "db_writer",
             "class_specification": {
                 "id": "db_writer",
-                "function_type": "RUST_X86",
+                "function_type": "RUST_ARM",
                 "version": "0.1",
-                "code": "../../functions/db_writer/db_writer_x86.so",
+                "code": "../../functions/db_writer/db_writer_aarch.so",
                 "outputs": [
                     "database"
                 ]
@@ -71,7 +75,25 @@
                 "database": "sqlx_db"
             },
             "annotations": {
-                "label_match_all": "os=linux,arch=x86_64"
+                "label_match_all": "os=linux,arch=arm"
+            }
+        },
+        {
+            "name": "db_reader",
+            "class_specification": {
+                "id": "db_reader",
+                "function_type": "RUST_ARM",
+                "version": "0.1",
+                "code": "../../functions/db_reader/db_reader_aarch.so",
+                "outputs": [
+                    "database"
+                ]
+            },
+            "output_mapping": {
+                "database": "sqlx_db"
+            },
+            "annotations": {
+                "label_match_all": "os=linux,arch=arm"
             }
         }
     ],
@@ -83,7 +105,7 @@
                 "new_request": "sdxl_web_receiver"
             },
             "configurations": {
-                "method": "POST"
+                "method": "POST,GET"
             },
             "annotations": {
                 "label_match_all": "os=darwin"
@@ -106,7 +128,7 @@
                 "url": "sqlite://image_history.db"
             },
             "annotations": {
-                "label_match_all": "os=linux,arch=x86_64"
+                "label_match_all": "os=linux,arch=arm"
             }
         }
     ],
