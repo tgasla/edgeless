@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: © 2024 Chen Chen <cc2181@cam.ac.uk>
 // SPDX-License-Identifier: MIT
 use edgeless_dataplane::core::Message;
-use sqlx::{FromRow, Sqlite, SqlitePool, migrate::MigrateDatabase};
+use sqlx::{Column, Row, Sqlite, SqlitePool, migrate::MigrateDatabase};
 use tokio;
 
 pub struct SqlxResourceSpec {}
@@ -112,18 +112,49 @@ impl SqlxResource {
                 log::info!("create table in sql {:?}", response);
 
                 if message_data.to_string().contains("SELECT") {
-                    let result: sqlx::Result<WorkflowState, sqlx::Error> =
-                        sqlx::query_as(message_data.as_str()).bind(workflow_id).fetch_one(&db).await;
+                    let rows = sqlx::query(message_data.as_str()).fetch_all(&db).await;
 
-                    match result {
-                        Ok(response) => {
-                            log::info!("Response from database: {response:?}");
+                    match rows {
+                        Ok(row_set) => {
+                            let mut response = String::new();
+                            let row_count = row_set.len();
+                            if !row_set.is_empty() {
+                                // Header row
+                                let columns: Vec<String> = (0..row_set[0].columns().len())
+                                    .map(|i| row_set[0].columns()[i].name().to_string())
+                                    .collect();
+                                response.push_str(&columns.join("|"));
+                                response.push('\n');
+
+                                // Data rows
+                                for row in &row_set {
+                                    let values: Vec<String> = (0..row.columns().len())
+                                        .map(|i| {
+                                            // Try to get as i64 first (INTEGER), then as String
+                                            if let Ok(v) = row.try_get::<i64, _>(i) {
+                                                v.to_string()
+                                            } else if let Ok(v) = row.try_get::<String, _>(i) {
+                                                v.replace('|', "<PIPE>")
+                                            } else if let Ok(v) = row.try_get::<i32, _>(i) {
+                                                v.to_string()
+                                            } else if let Ok(v) = row.try_get::<u32, _>(i) {
+                                                v.to_string()
+                                            } else {
+                                                "NULL".to_string()
+                                            }
+                                        })
+                                        .collect();
+                                    response.push_str(&values.join("|"));
+                                    response.push('\n');
+                                }
+                            }
+                            log::info!("Response from database: {} rows", row_count);
                             if need_reply {
                                 dataplane_handle
                                     .reply(
                                         source_id,
                                         channel_id,
-                                        edgeless_dataplane::core::CallRet::Reply(serde_json::to_string(&response).unwrap_or_default()),
+                                        edgeless_dataplane::core::CallRet::Reply(response.trim_end().to_string()),
                                         &metadata,
                                     )
                                     .await;
@@ -246,17 +277,5 @@ impl edgeless_api::resource_configuration::ResourceConfigurationAPI<edgeless_api
     async fn patch(&mut self, _update: edgeless_api::common::PatchRequest) -> anyhow::Result<()> {
         // the resource has no channels: nothing to be patched
         Ok(())
-    }
-}
-
-#[derive(Clone, FromRow, Debug, serde::Deserialize, serde::Serialize)]
-struct WorkflowState {
-    id: String,
-    metadata: serde_json::Value,
-}
-
-impl std::fmt::Display for WorkflowState {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "id: {}, metadata: {}", self.id, self.metadata)
     }
 }

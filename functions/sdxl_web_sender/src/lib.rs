@@ -16,7 +16,7 @@ impl EdgeFunction for SdxlWebSender {
         delayed_cast(5000, "self", b"ready");
     }
 
-    fn handle_cast(src: InstanceId, msg: &[u8]) {
+    fn handle_cast(_src: InstanceId, msg: &[u8]) {
         let msg_str = core::str::from_utf8(msg).unwrap_or("");
 
         // Handle the "ready" message - output_mapping should now be set

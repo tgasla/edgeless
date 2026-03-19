@@ -24,7 +24,6 @@ struct ModelState {
     text_encoder_1: stable_diffusion::clip::ClipTextTransformer,
     text_encoder_2: stable_diffusion::clip::ClipTextTransformer,
     tokenizer: tokenizers::Tokenizer,
-    sd_config: StableDiffusionConfig,
 }
 
 unsafe impl Send for ModelState {}
@@ -109,7 +108,7 @@ impl EdgeFunction for AIEngine {
         // Extract and concatenate embeddings (becomes [1, 77, 2048])
         let emb1 = text_encoder_1.forward(&input_ids).expect("Failed to encode text 1");
         let emb2 = text_encoder_2.forward(&input_ids).expect("Failed to encode text 2");
-        let text_embeddings = Tensor::cat(&[&emb1, &emb2], 2).expect("Failed to concat embeddings");
+        let _text_embeddings = Tensor::cat(&[&emb1, &emb2], 2).expect("Failed to concat embeddings");
 
         log::info!("AI Engine: All models ready!");
 
@@ -120,14 +119,13 @@ impl EdgeFunction for AIEngine {
             text_encoder_1,
             text_encoder_2,
             tokenizer,
-            sd_config,
         });
     }
 
     fn handle_cast(_src: InstanceId, msg: &[u8]) {
         // Define an inner function so we can use the '?' operator
         let process = || -> Result<(), Box<dyn std::error::Error>> {
-            let frame_id = FRAME_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let _frame_id = FRAME_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             let guard = MODEL.lock().unwrap();
             let state = guard.as_ref().ok_or("AI Engine: Model not initialized!")?;
 
@@ -135,7 +133,6 @@ impl EdgeFunction for AIEngine {
             let msg_str = core::str::from_utf8(msg)?;
             let web_payload: WebPayload = serde_json::from_str(msg_str)?;
 
-            use base64::prelude::*;
             let input_bytes = BASE64_STANDARD.decode(&web_payload.image_base64)?;
 
             let img = image::load_from_memory(&input_bytes)?;
