@@ -16,6 +16,9 @@ pub struct DeploymentRequirements {
     /// The function instance must be created on a node that hosts all the
     /// resources providers specified, if any is given.
     pub resource_match_all: Vec<String>,
+    /// The function instance must be created on a node that hosts all the
+    /// resources class types specified, if any is given.
+    pub resource_class_type_match_all: Vec<String>,
     /// Function instance's node affinity with Trusted Execution Environment.
     pub tee: crate::affinity_level::AffinityLevel,
     /// Function instance's node affinity with Trusted Platform Module.
@@ -26,11 +29,12 @@ impl std::fmt::Display for DeploymentRequirements {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "max_instances {}, node_id_match_any {}, label_match_all {}, resource_match_all {}, tee {}, tpm {}",
+            "max_instances {}, node_id_match_any {}, label_match_all {}, resource_match_all {}, resource_class_type_match_all {}, tee {}, tpm {}",
             self.max_instances,
             self.node_id_match_any.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(","),
             self.label_match_all.join(","),
             self.resource_match_all.join(","),
+            self.resource_class_type_match_all.join(","),
             self.tee,
             self.tpm
         )
@@ -46,6 +50,7 @@ impl DeploymentRequirements {
             node_id_match_any: vec![],
             label_match_all: vec![],
             resource_match_all: vec![],
+            resource_class_type_match_all: vec![],
             tee: crate::affinity_level::AffinityLevel::NotRequired,
             tpm: crate::affinity_level::AffinityLevel::NotRequired,
         }
@@ -71,6 +76,10 @@ impl DeploymentRequirements {
         if let Some(val) = annotations.get("resource_match_all") {
             resource_match_all = val.split(",").map(|x| x.to_string()).collect();
         }
+        let mut resource_class_type_match_all = vec![];
+        if let Some(val) = annotations.get("resource_class_type_match_all") {
+            resource_class_type_match_all = val.split(",").map(|x| x.to_string()).collect();
+        }
 
         let mut tee = crate::affinity_level::AffinityLevel::NotRequired;
         if let Some(val) = annotations.get("tee") {
@@ -87,6 +96,7 @@ impl DeploymentRequirements {
             node_id_match_any,
             label_match_all,
             resource_match_all,
+            resource_class_type_match_all,
             tee,
             tpm,
         }
@@ -104,6 +114,7 @@ impl DeploymentRequirements {
         node_id: &uuid::Uuid,
         capabilities: &edgeless_api::node_registration::NodeCapabilities,
         resource_providers: &std::collections::HashSet<String>,
+        resource_class_types: &std::collections::HashSet<String>,
     ) -> bool {
         if !self.node_id_match_any.is_empty() && !self.node_id_match_any.contains(node_id) {
             return false;
@@ -115,6 +126,11 @@ impl DeploymentRequirements {
         }
         for provider in self.resource_match_all.iter() {
             if !resource_providers.contains(provider) {
+                return false;
+            }
+        }
+        for class_type in self.resource_class_type_match_all.iter() {
+            if !resource_class_types.contains(class_type) {
                 return false;
             }
         }

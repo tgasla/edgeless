@@ -230,12 +230,13 @@ async fn resource_to_function_start_stop() {
                 output_mapping: std::collections::HashMap::new(),
                 annotations: std::collections::HashMap::new(),
             }],
-            resources: vec![edgeless_api::workflow_instance::WorkflowResource {
-                name: "r1".to_string(),
-                class_type: "test-res".to_string(),
-                output_mapping: std::collections::HashMap::from([("test_out".to_string(), "f1".to_string())]),
-                configurations: std::collections::HashMap::new(),
-            }],
+                resources: vec![edgeless_api::workflow_instance::WorkflowResource {
+                    name: "r1".to_string(),
+                    class_type: "test-res".to_string(),
+                    output_mapping: std::collections::HashMap::from([("test_out".to_string(), "f1".to_string())]),
+                    configurations: std::collections::HashMap::new(),
+                    annotations: std::collections::HashMap::new(),
+                }],
             annotations: std::collections::HashMap::new(),
         })
         .await
@@ -432,4 +433,82 @@ async fn function_link_loop_start_stop() {
         panic!();
     }
     assert!(fids.is_empty());
+}
+
+#[tokio::test]
+async fn annotation_inheritance() {
+    let (mut wf_client, mut mock_orc_receiver) = test_setup().await;
+
+    let response = wf_client
+        .start(edgeless_api::workflow_instance::SpawnWorkflowRequest {
+            functions: vec![
+                edgeless_api::workflow_instance::WorkflowFunction {
+                    name: "f1".to_string(),
+                    class_specification: edgeless_api::function_instance::FunctionClassSpecification {
+                        id: "fc1".to_string(),
+                        function_type: "RUST_WASM".to_string(),
+                        version: "0.1".to_string(),
+                        binary: None,
+                        code: None,
+                        outputs: vec![],
+                    },
+                    output_mapping: std::collections::HashMap::new(),
+                    annotations: std::collections::HashMap::from([("local".to_string(), "local-val".to_string())]),
+                },
+                edgeless_api::workflow_instance::WorkflowFunction {
+                    name: "f2".to_string(),
+                    class_specification: edgeless_api::function_instance::FunctionClassSpecification {
+                        id: "fc2".to_string(),
+                        function_type: "RUST_WASM".to_string(),
+                        version: "0.1".to_string(),
+                        binary: None,
+                        code: None,
+                        outputs: vec![],
+                    },
+                    output_mapping: std::collections::HashMap::new(),
+                    annotations: std::collections::HashMap::from([("global".to_string(), "override-val".to_string())]),
+                },
+            ],
+            resources: vec![edgeless_api::workflow_instance::WorkflowResource {
+                name: "r1".to_string(),
+                class_type: "test-res".to_string(),
+                output_mapping: std::collections::HashMap::new(),
+                configurations: std::collections::HashMap::new(),
+                annotations: std::collections::HashMap::new(),
+            }],
+            annotations: std::collections::HashMap::from([("global".to_string(), "global-val".to_string())]),
+        })
+        .await
+        .unwrap();
+
+    let instance = match response {
+        SpawnWorkflowResponse::WorkflowInstance(val) => val,
+        _ => panic!(),
+    };
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+    // Check f1: should have global + local
+    if let MockFunctionInstanceEvent::StartFunction((_, spawn_req)) = mock_orc_receiver.try_next().unwrap().unwrap() {
+        assert_eq!(spawn_req.annotations.get("global").unwrap(), "global-val");
+        assert_eq!(spawn_req.annotations.get("local").unwrap(), "local-val");
+    } else {
+        panic!();
+    }
+
+    // Check f2: should have override-val for global
+    if let MockFunctionInstanceEvent::StartFunction((_, spawn_req)) = mock_orc_receiver.try_next().unwrap().unwrap() {
+        assert_eq!(spawn_req.annotations.get("global").unwrap(), "override-val");
+    } else {
+        panic!();
+    }
+
+    // Check r1: should have global
+    if let MockFunctionInstanceEvent::StartResource((_, spec)) = mock_orc_receiver.try_next().unwrap().unwrap() {
+        assert_eq!(spec.annotations.get("global").unwrap(), "global-val");
+    } else {
+        panic!();
+    }
+
+    wf_client.stop(instance.workflow_id).await.unwrap();
 }

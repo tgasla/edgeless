@@ -48,17 +48,15 @@ pub struct InstanceId {
 
 impl core::fmt::Display for InstanceId {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let node_id = match std::str::from_utf8(&self.node_id) {
-            Ok(s) => s,
-            Err(_) => "invalid"
-        };
-
-        let component_id = match std::str::from_utf8(&self.component_id) {
-            Ok(s) => s,
-            Err(_) => "invalid"
-        };
-
-        write!(f, "InstanceId(node_id: {}, component_id: {})", node_id, component_id)
+        write!(f, "InstanceId(node_id: ")?;
+        for b in self.node_id {
+            write!(f, "{:02x}", b)?;
+        }
+        write!(f, ", component_id: ")?;
+        for b in self.component_id {
+            write!(f, "{:02x}", b)?;
+        }
+        write!(f, ")")
     }
 }
 

@@ -8,6 +8,7 @@ pub struct ResourceProviderSpecification {
     pub provider_id: String,
     pub class_type: String,
     pub outputs: Vec<String>,
+    pub annotations: std::collections::HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default, serde::Serialize, serde::Deserialize)]
@@ -38,6 +39,8 @@ pub struct NodeCapabilities {
     pub model_name_gpu: String,
     // GPU memory available, in MiB.
     pub mem_size_gpu: u32,
+    // List of resource class types supported by the node.
+    pub resource_class_types: std::collections::HashSet<String>,
 }
 
 impl NodeCapabilities {
@@ -57,6 +60,7 @@ impl NodeCapabilities {
             num_gpus: 0,
             model_name_gpu: "".to_string(),
             mem_size_gpu: 0,
+            resource_class_types: std::collections::HashSet::new(),
         }
     }
 
@@ -330,10 +334,11 @@ impl std::fmt::Display for ResourceProviderSpecification {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "provider_id {}, class_type {}, outputs [{}]",
+            "provider_id {}, class_type {}, outputs [{}], annotations [{:?}]",
             self.provider_id,
             self.class_type,
             self.outputs.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(","),
+            self.annotations,
         )
     }
 }

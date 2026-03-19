@@ -424,10 +424,15 @@ impl OrchestratorTask {
             .iter()
             .filter_map(|(provider_id, provider)| {
                 let capabilities = &self.nodes.get(&provider.node_id).unwrap().capabilities;
-                let deployment_requirements = crate::deployment_requirements::DeploymentRequirements::from_annotations(&resource_req.configuration);
+                let deployment_requirements = crate::deployment_requirements::DeploymentRequirements::from_annotations(&resource_req.annotations);
+                let node_resource_providers: std::collections::HashSet<String> = self.resource_providers
+                    .iter()
+                    .filter(|(_, p)| p.node_id == provider.node_id)
+                    .map(|(_, p)| p.class_type.clone())
+                    .collect();
                 if provider.class_type == resource_req.class_type
                     && !cordoned_nodes.contains(&provider.node_id)
-                    && deployment_requirements.is_feasible(&provider.node_id, capabilities, &std::collections::HashSet::default())
+                    && deployment_requirements.is_feasible(&provider.node_id, capabilities, &node_resource_providers, &capabilities.resource_class_types)
                 {
                     Some(provider_id.clone())
                 } else {
@@ -449,10 +454,16 @@ impl OrchestratorTask {
             return false;
         }
         let capabilities = &self.nodes.get(node_id).unwrap().capabilities;
-        if !crate::deployment_requirements::DeploymentRequirements::from_annotations(&resource_req.configuration).is_feasible(
+        let node_resource_providers: std::collections::HashSet<String> = self.resource_providers
+            .iter()
+            .filter(|(_, p)| p.node_id == *node_id)
+            .map(|(_, p)| p.class_type.clone())
+            .collect();
+        if !crate::deployment_requirements::DeploymentRequirements::from_annotations(&resource_req.annotations).is_feasible(
             node_id,
             capabilities,
-            &std::collections::HashSet::default(),
+            &node_resource_providers,
+            &capabilities.resource_class_types,
         ) {
             return false;
         }
@@ -809,6 +820,7 @@ impl OrchestratorTask {
                         class_type: resource.class_type.clone(),
                         node_id,
                         outputs: resource.outputs.clone(),
+                        annotations: resource.annotations.clone(),
                     },
                 );
             }

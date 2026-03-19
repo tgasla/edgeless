@@ -264,6 +264,7 @@ fn parse_workflow_resource(api_workflow: &crate::grpc_impl::api::WorkflowResourc
         class_type: api_workflow.class_type.clone(),
         output_mapping: api_workflow.output_mapping.clone(),
         configurations: api_workflow.configurations.clone(),
+        annotations: api_workflow.annotations.clone(),
     })
 }
 
@@ -387,6 +388,7 @@ fn serialize_workflow_resource(crate_resource: &crate::workflow_instance::Workfl
         class_type: crate_resource.class_type.clone(),
         output_mapping: crate_resource.output_mapping.clone(),
         configurations: crate_resource.configurations.clone(),
+        annotations: crate_resource.annotations.clone(),
     }
 }
 
@@ -515,6 +517,7 @@ mod tests {
             class_type: "my_res_class_type".to_string(),
             output_mapping: HashMap::from([("out1".to_string(), "out3".to_string()), ("out2".to_string(), "out4".to_string())]),
             configurations: HashMap::from([("conf1".to_string(), "val1".to_string()), ("conf2".to_string(), "val2".to_string())]),
+            annotations: HashMap::new(),
         }];
 
         for msg in messages {
@@ -547,6 +550,7 @@ mod tests {
                 class_type: "my_res_class_type".to_string(),
                 output_mapping: HashMap::from([("out1".to_string(), "out3".to_string()), ("out2".to_string(), "out4".to_string())]),
                 configurations: HashMap::from([("conf1".to_string(), "val1".to_string()), ("conf2".to_string(), "val2".to_string())]),
+                annotations: HashMap::new(),
             }],
         }];
 

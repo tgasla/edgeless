@@ -6,16 +6,18 @@ pub struct ResourceProvider {
     pub class_type: String,
     pub node_id: edgeless_api::function_instance::NodeId,
     pub outputs: Vec<String>,
+    pub annotations: std::collections::HashMap<String, String>,
 }
 
 impl std::fmt::Display for ResourceProvider {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "class_type {}, node_id {}, outputs [{}]",
+            "class_type {}, node_id {}, outputs [{}], annotations [{:?}]",
             self.class_type,
             self.node_id,
             self.outputs.iter().map(|x| x.to_string()).collect::<Vec<String>>().join(","),
+            self.annotations,
         )
     }
 }

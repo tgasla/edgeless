@@ -301,6 +301,7 @@ impl Engine {
                         ("key".to_string(), "last_transaction_id".to_string()),
                         ("add-workflow-id".to_string(), "true".to_string()),
                     ]),
+                    annotations: std::collections::HashMap::new(),
                 });
 
                 log::info!(

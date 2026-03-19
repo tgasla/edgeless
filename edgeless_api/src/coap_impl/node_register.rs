@@ -62,6 +62,7 @@ impl CoapNodeRegisterServer {
                     provider_id: String::from(core_spec.provider_id),
                     class_type: String::from(core_spec.class_type),
                     outputs: core_spec.outputs.iter().map(|core_output| String::from(*core_output)).collect(),
+                    annotations: std::collections::HashMap::new(),
                 })
                 .collect(),
             capabilities: crate::node_registration::NodeCapabilities::default(),

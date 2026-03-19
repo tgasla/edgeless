@@ -922,6 +922,7 @@ mod test {
                             ("key1".to_string(), "val1".to_string()),
                             ("key2".to_string(), "val2".to_string()),
                         ]),
+                        annotations: std::collections::HashMap::new(),
                         workflow_id: "workflow_1".to_string(),
                     },
                     edgeless_api::function_instance::InstanceId {
@@ -1182,6 +1183,7 @@ mod test {
                 class_type: "class1".to_string(),
                 node_id: uuid::Uuid::new_v4(),
                 outputs: vec!["out".to_string()],
+                annotations: std::collections::HashMap::new(),
             },
         );
 

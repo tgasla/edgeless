@@ -116,6 +116,7 @@ fn parse_node_capabilities(api_instance: &crate::grpc_impl::api::NodeCapabilitie
         num_gpus: api_instance.num_gpus,
         model_name_gpu: api_instance.model_name_gpu.clone(),
         mem_size_gpu: api_instance.mem_size_gpu,
+        resource_class_types: api_instance.resource_class_types.iter().cloned().collect(),
     }
 }
 
@@ -134,6 +135,7 @@ fn serialize_node_capabilities(req: &crate::node_registration::NodeCapabilities)
         num_gpus: req.num_gpus,
         model_name_gpu: req.model_name_gpu.clone(),
         mem_size_gpu: req.mem_size_gpu,
+        resource_class_types: req.resource_class_types.iter().cloned().collect(),
     }
 }
 
@@ -228,6 +230,7 @@ fn parse_resource_provider_specification(
         provider_id: api_spec.provider_id.clone(),
         class_type: api_spec.class_type.clone(),
         outputs: api_spec.outputs.clone(),
+        annotations: api_spec.annotations.clone(),
     })
 }
 
@@ -238,6 +241,7 @@ fn serialize_resource_provider_specification(
         provider_id: crate_spec.provider_id.clone(),
         class_type: crate_spec.class_type.clone(),
         outputs: crate_spec.outputs.clone(),
+        annotations: crate_spec.annotations.clone(),
     }
 }
 
@@ -476,6 +480,7 @@ mod test {
                 provider_id: "provider-1".to_string(),
                 class_type: "class-type-1".to_string(),
                 outputs: vec!["out1".to_string(), "out2".to_string()],
+                annotations: std::collections::HashMap::new(),
             }],
             capabilities: NodeCapabilities {
                 num_cpus: 4,
@@ -491,6 +496,7 @@ mod test {
                 num_gpus: 3,
                 model_name_gpu: "NVIDIA A100".to_string(),
                 mem_size_gpu: 80 * 1024,
+                resource_class_types: std::collections::HashSet::new(),
             },
             refresh_deadline: std::time::UNIX_EPOCH + std::time::Duration::from_secs(313714800),
             nonce: 1,

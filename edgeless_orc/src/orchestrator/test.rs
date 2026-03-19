@@ -179,6 +179,7 @@ fn create_clients_resources(
                 provider_id: format!("node-{}-resource-{}-provider", node_i, provider_i),
                 class_type: "rc-1".to_string(),
                 outputs: vec![],
+                annotations: std::collections::HashMap::new(),
             });
         }
 
@@ -355,6 +356,7 @@ fn make_start_resource_request(class_type: &str) -> edgeless_api::resource_confi
     edgeless_api::resource_configuration::ResourceInstanceSpecification {
         class_type: class_type.to_string(),
         configuration: std::collections::HashMap::new(),
+        annotations: std::collections::HashMap::new(),
         workflow_id: "workflow_1".to_string(),
     }
 }
@@ -1678,6 +1680,7 @@ async fn test_orc_invalid_migration() {
                 provider_id: "provider-1".to_string(),
                 class_type: "rc-1".to_string(),
                 outputs: vec![],
+                annotations: std::collections::HashMap::new(),
             });
         }
 

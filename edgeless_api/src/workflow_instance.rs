@@ -311,6 +311,7 @@ mod test {
                     (String::from("out2"), String::from("f1")),
                 ]),
                 configurations: std::collections::HashMap::new(),
+                annotations: std::collections::HashMap::new(),
             }],
             annotations: std::collections::HashMap::new(),
         };

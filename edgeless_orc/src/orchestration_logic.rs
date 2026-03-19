@@ -19,8 +19,10 @@ pub struct OrchestrationLogic {
     nodes: Vec<uuid::Uuid>,
     /// Capabilities of the nodes.
     capabilities: Vec<edgeless_api::node_registration::NodeCapabilities>,
-    /// Resource providers of the nodes.
+    /// Resource providers of the nodes (names).
     resource_providers: Vec<std::collections::HashSet<String>>,
+    /// Resource class types of the nodes.
+    resource_class_types: Vec<std::collections::HashSet<String>>,
     /// Used by Random, pair of (weight, node_id).
     weights: Vec<f32>,
 }
@@ -39,6 +41,7 @@ impl OrchestrationLogic {
             nodes: vec![],
             capabilities: vec![],
             resource_providers: vec![],
+            resource_class_types: vec![],
             weights: vec![],
         }
     }
@@ -52,6 +55,7 @@ impl OrchestrationLogic {
         self.nodes.clear();
         self.capabilities.clear();
         self.resource_providers.clear();
+        self.resource_class_types.clear();
         self.weights.clear();
         for (node, desc) in clients {
             if desc.capabilities.do_not_use() || desc.cordoned {
@@ -67,6 +71,13 @@ impl OrchestrationLogic {
                     .map(|(name, _)| name.clone())
                     .collect(),
             );
+            self.resource_class_types.push(
+                resource_providers
+                    .iter()
+                    .filter(|(_, info)| info.node_id == *node)
+                    .map(|(_, info)| info.class_type.clone())
+                    .collect(),
+            );
             let mut weight = (std::cmp::max(desc.capabilities.num_cores, desc.capabilities.num_cpus) as f32) * desc.capabilities.clock_freq_cpu;
             if weight == 0.0 {
                 // Force a vanishing weight to an arbitrary value.
@@ -76,6 +87,7 @@ impl OrchestrationLogic {
         }
         assert!(self.nodes.len() == self.capabilities.len());
         assert!(self.nodes.len() == self.resource_providers.len());
+        assert!(self.nodes.len() == self.resource_class_types.len());
         assert!(self.nodes.len() == self.weights.len());
         assert!(self.nodes.len() <= clients.len());
     }
@@ -92,6 +104,7 @@ impl OrchestrationLogic {
                     &self.nodes[ndx],
                     &self.capabilities[ndx],
                     &self.resource_providers[ndx],
+                    &self.resource_class_types[ndx],
                 )
             {
                 candidates.push(self.nodes[ndx]);
@@ -110,8 +123,9 @@ impl OrchestrationLogic {
         node_id: &uuid::Uuid,
         capabilities: &edgeless_api::node_registration::NodeCapabilities,
         resource_providers: &std::collections::HashSet<String>,
+        resource_class_types: &std::collections::HashSet<String>,
     ) -> bool {
-        capabilities.runtimes.contains(&runtime.to_string()) && reqs.is_feasible(node_id, capabilities, resource_providers)
+        capabilities.runtimes.contains(&runtime.to_string()) && reqs.is_feasible(node_id, capabilities, resource_providers, resource_class_types)
     }
 
     /// Select the next node on which a function instance should be spawned,
@@ -135,6 +149,7 @@ impl OrchestrationLogic {
                         &self.nodes[i],
                         &self.capabilities[i],
                         &self.resource_providers[i],
+                        &self.resource_class_types[i],
                     ) {
                         candidates.push((i, self.weights[i]));
                         high += self.weights[i];
@@ -170,6 +185,7 @@ impl OrchestrationLogic {
                         &self.nodes[cand_ndx],
                         &self.capabilities[cand_ndx],
                         &self.resource_providers[cand_ndx],
+                        &self.resource_class_types[cand_ndx],
                     ) {
                         return Some(self.nodes[cand_ndx]);
                     }
@@ -192,29 +208,50 @@ mod tests {
         let node_id = uuid::Uuid::new_v4();
         let mut reqs = DeploymentRequirements::none();
         let mut caps = edgeless_api::node_registration::NodeCapabilities::minimum();
+        let mut class_types = std::collections::HashSet::new();
         let mut providers = std::collections::HashSet::new();
         let mut runtime = "RUST_WASM".to_string();
 
         // Empty requirements
         assert!(crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
 
         // Match any node_id
         reqs.node_id_match_any.push(node_id);
         assert!(crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
 
         reqs.node_id_match_any.push(uuid::Uuid::new_v4());
         assert!(crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
 
         reqs.node_id_match_any.clear();
         reqs.node_id_match_any.push(uuid::Uuid::new_v4());
         assert!(!crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
         reqs.node_id_match_any.clear();
 
@@ -222,82 +259,182 @@ mod tests {
         reqs.label_match_all.push("red".to_string());
         caps.labels.push("green".to_string());
         assert!(!crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
 
         caps.labels.push("red".to_string());
         assert!(crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
 
         reqs.label_match_all.push("blue".to_string());
         assert!(!crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
 
         caps.labels.push("blue".to_string());
         assert!(crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
 
         // Match all providers
         reqs.resource_match_all.push("file-1".to_string());
         assert!(!crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
 
         providers.insert("file-1".to_string());
         assert!(crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
 
         providers.insert("file-2".to_string());
         providers.insert("file-3".to_string());
         assert!(crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
 
         reqs.resource_match_all.push("file-9".to_string());
         assert!(!crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
 
         providers.insert("file-9".to_string());
         assert!(crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
 
         // Match TEE and TPM
         reqs.tee = AffinityLevel::Required;
         assert!(!crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
         caps.is_tee_running = true;
         assert!(crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
 
         reqs.tpm = AffinityLevel::Required;
         assert!(!crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
         caps.has_tpm = true;
         assert!(crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
 
         // Match runtime
         runtime = "CONTAINER".to_string();
         assert!(!crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
         runtime = "".to_string();
         assert!(!crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
         runtime = "RUST_WASM".to_string();
         assert!(crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
-            &runtime, &reqs, &node_id, &caps, &providers
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
+        ));
+
+        // Match resource class type
+        reqs.resource_match_all.push("gpu".to_string());
+        assert!(!crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
+        ));
+        providers.insert("gpu".to_string());
+        assert!(crate::orchestration_logic::OrchestrationLogic::is_node_feasible(
+            &runtime,
+            &reqs,
+            &node_id,
+            &caps,
+            &providers,
+            &class_types
         ));
     }
 }

@@ -138,6 +138,8 @@ message NodeCapabilities {
     string model_name_gpu    = 81;
     // GPU memory available, in MiB.
     uint32 mem_size_gpu      = 82;
+    // List of resource class types supported by the node.
+    repeated string resource_class_types = 83;
 }
 
 // Response message of NodeRegistrationAPI::UpdateNode().
@@ -312,6 +314,8 @@ message WorkflowResource {
     map<string, string> output_mapping = 3;
     // Configuration of the resource, which depends on the resource type.
     map<string, string> configurations = 4;
+    // Annotations associated with this resource, if any.
+    map<string, string> annotations = 5;
 }
 
 // Message defining a function within a workflow.
@@ -537,6 +541,8 @@ message ResourceProviderSpecification {
     string class_type        = 2;
     // List of callbacks that can be invoked.
     repeated string outputs  = 3;
+    // Annotations associated with this resource provider.
+    map<string, string> annotations = 4;
 }
 
 // Resource instance specification.
@@ -547,6 +553,8 @@ message ResourceInstanceSpecification {
     map<string, string> configuration = 2;
     // The workflow id to which this resource instance belongs 
     string workflow_id = 3;
+    // Annotations associated with this resource instance, if any.
+    map<string, string> annotations = 4;
 }
 
 // Message containing information provided as response to failed request.

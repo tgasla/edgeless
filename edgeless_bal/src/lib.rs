@@ -72,6 +72,7 @@ pub async fn edgeless_bal_main(settings: EdgelessBalSettings) {
         provider_id: provider_id.clone(),
         class_type: class_type.to_string(),
         outputs: vec!["out".to_string()],
+        annotations: std::collections::HashMap::new(),
     }];
     let client = Box::new(
         portal::PortalResourceProvider::new(

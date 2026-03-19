@@ -65,6 +65,8 @@ pub struct WorkflowSpecResourceInstance {
     pub output_mapping: std::collections::HashMap<String, String>,
     /// key-value configuration of the resource instance
     pub configurations: std::collections::HashMap<String, String>,
+    /// key-value pairs of annotations for the resource
+    pub annotations: std::collections::HashMap<String, String>,
 }
 
 /// Defines the workflow to be deployed on edgeless framework

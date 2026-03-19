@@ -123,6 +123,7 @@ mod system_tests {
                     },
                     wasm_runtime: Some(edgeless_node::EdgelessNodeWasmRuntimeSettings { enabled: true }),
                     container_runtime: None,
+                    native_runtime: None,
                     resources,
                     user_node_capabilities: None,
                     power_info: None,
@@ -358,6 +359,7 @@ mod system_tests {
                         class_type: "file-log".to_string(),
                         output_mapping: std::collections::HashMap::new(),
                         configurations: std::collections::HashMap::from([("filename".to_string(), "removeme.log".to_string())]),
+                        annotations: std::collections::HashMap::new(),
                     }],
                     annotations: std::collections::HashMap::new(),
                 })
@@ -516,6 +518,7 @@ mod system_tests {
                         class_type: "file-log".to_string(),
                         output_mapping: std::collections::HashMap::new(),
                         configurations: std::collections::HashMap::from([("filename".to_string(), removeme_filename(workflow_i))]),
+                        annotations: std::collections::HashMap::new(),
                     }],
                     annotations: std::collections::HashMap::new(),
                 })
@@ -754,6 +757,7 @@ mod system_tests {
                     class_type: "file-log".to_string(),
                     output_mapping: std::collections::HashMap::new(),
                     configurations: std::collections::HashMap::from([("filename".to_string(), removeme_filename())]),
+                    annotations: std::collections::HashMap::new(),
                 }],
                 annotations: std::collections::HashMap::new(),
             })
@@ -1203,6 +1207,7 @@ mod system_tests {
                         class_type: "file-log".to_string(),
                         output_mapping: std::collections::HashMap::new(),
                         configurations: std::collections::HashMap::from([("filename".to_string(), removeme_filename.to_string())]),
+                        annotations: std::collections::HashMap::new(),
                     }],
                     annotations: std::collections::HashMap::new(),
                 })

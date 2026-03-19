@@ -122,6 +122,8 @@ impl ControllerTask {
                     return ret;
                 }
             };
+            let mut request = request;
+            Self::merge_wf_annotations(&mut request);
             ret.insert(edgeless_api::workflow_instance::WorkflowId { workflow_id }, request);
         }
 
@@ -250,14 +252,9 @@ impl ControllerTask {
 
     async fn start_workflow(
         &mut self,
-        spawn_workflow_request: edgeless_api::workflow_instance::SpawnWorkflowRequest,
+        mut spawn_workflow_request: edgeless_api::workflow_instance::SpawnWorkflowRequest,
     ) -> anyhow::Result<edgeless_api::workflow_instance::SpawnWorkflowResponse, edgeless_api::workflow_instance::SpawnWorkflowRequest> {
-        if !spawn_workflow_request.annotations.is_empty() {
-            log::warn!(
-                "Workflow annotations ({}) are currently ignored",
-                spawn_workflow_request.annotations.len()
-            );
-        }
+        Self::merge_wf_annotations(&mut spawn_workflow_request);
 
         // Optimistically identify a new identifier for the workflow that
         // will be created, which will go unused if creation fails.
@@ -352,6 +349,7 @@ impl ControllerTask {
             configurations: std::collections::HashMap<String, String>,
             output_mapping: std::collections::HashMap<String, String>,
             domain: String,
+            annotations: std::collections::HashMap<String, String>,
         }
         let mut new_resources = vec![];
         #[derive(Debug)]
@@ -390,6 +388,7 @@ impl ControllerTask {
                     ]),
                     output_mapping: std::collections::HashMap::new(),
                     domain: origin_domain.clone(),
+                    annotations: std::collections::HashMap::new(),
                 });
                 let next_resource_name = format!("portal-{}-source-portal", id + 1);
                 new_resources.push(NewResource {
@@ -402,6 +401,7 @@ impl ControllerTask {
                     ]),
                     output_mapping: std::collections::HashMap::from([(String::from("out"), next_resource_name.clone())]),
                     domain: domain_bal.clone(),
+                    annotations: std::collections::HashMap::new(),
                 });
 
                 // Create the second pair of portal resources (source).
@@ -417,6 +417,7 @@ impl ControllerTask {
                     ]),
                     output_mapping: std::collections::HashMap::new(),
                     domain: domain_bal.clone(),
+                    annotations: std::collections::HashMap::new(),
                 });
                 new_resources.push(NewResource {
                     name: format!("portal-{}-source-local", id),
@@ -427,6 +428,7 @@ impl ControllerTask {
                     ]),
                     output_mapping: std::collections::HashMap::from([(String::from("out"), target_component_name.clone())]),
                     domain: target_domain.clone(),
+                    annotations: std::collections::HashMap::new(),
                 });
 
                 // Change the target in the original component.
@@ -448,6 +450,7 @@ impl ControllerTask {
                 class_type: String::from("portal"),
                 output_mapping: new_resource.output_mapping,
                 configurations: new_resource.configurations,
+                annotations: new_resource.annotations,
             });
         }
 
@@ -1096,6 +1099,22 @@ impl ControllerTask {
         }
     }
 
+    fn merge_wf_annotations(spawn_workflow_request: &mut edgeless_api::workflow_instance::SpawnWorkflowRequest) {
+        if !spawn_workflow_request.annotations.is_empty() {
+            // Apply workflow-level annotations as defaults to all functions and resources.
+            for function in &mut spawn_workflow_request.functions {
+                for (key, value) in &spawn_workflow_request.annotations {
+                    function.annotations.entry(key.clone()).or_insert(value.clone());
+                }
+            }
+            for resource in &mut spawn_workflow_request.resources {
+                for (key, value) in &spawn_workflow_request.annotations {
+                    resource.annotations.entry(key.clone()).or_insert(value.clone());
+                }
+            }
+        }
+    }
+
     /// Return the list of orchestration domains that are compatible with the
     /// given workflow request.
     fn workflow_compatible_domains(
@@ -1258,6 +1277,7 @@ impl ControllerTask {
             .start(edgeless_api::resource_configuration::ResourceInstanceSpecification {
                 class_type: resource.class_type.clone(),
                 configuration: resource.configurations.clone(),
+                annotations: resource.annotations.clone(),
                 workflow_id: wf_id.workflow_id.to_string(),
             })
             .await;
@@ -1365,10 +1385,11 @@ mod tests {
                 annotations: std::collections::HashMap::new(),
             }];
             let resources = vec![edgeless_api::workflow_instance::WorkflowResource {
-                name: "log".to_string(),
-                class_type: "file-log".to_string(),
-                output_mapping: std::collections::HashMap::new(),
-                configurations: std::collections::HashMap::from([("filename".to_string(), "example.log".to_string())]),
+                name: "r1".to_string(),
+                class_type: "test-res".to_string(),
+                output_mapping: std::collections::HashMap::from([("test_out".to_string(), "f1".to_string())]),
+                configurations: std::collections::HashMap::new(),
+                annotations: std::collections::HashMap::new(),
             }];
             let annotations = std::collections::HashMap::from([("ann1".to_string(), "val1".to_string())]);
             let request = SpawnWorkflowRequest {

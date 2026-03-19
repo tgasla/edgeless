@@ -234,6 +234,7 @@ pub struct NodeCapabilitiesUser {
     pub num_gpus: Option<u32>,
     pub model_name_gpu: Option<String>,
     pub mem_size_gpu: Option<u32>,
+    pub resource_class_types: Option<std::collections::HashSet<String>>,
 }
 
 impl NodeCapabilitiesUser {
@@ -251,13 +252,14 @@ impl NodeCapabilitiesUser {
             num_gpus: None,
             model_name_gpu: None,
             mem_size_gpu: None,
+            resource_class_types: None,
         }
     }
 }
 
 impl Default for NodeCapabilitiesUser {
     fn default() -> Self {
-        let caps = get_capabilities(vec!["RUST_WASM".to_string()], NodeCapabilitiesUser::empty());
+        let caps = get_capabilities(vec!["RUST_WASM".to_string()], NodeCapabilitiesUser::empty(), &[]);
         Self {
             num_cpus: Some(caps.num_cpus),
             model_name_cpu: Some(caps.model_name_cpu),
@@ -271,11 +273,16 @@ impl Default for NodeCapabilitiesUser {
             num_gpus: Some(caps.num_gpus),
             model_name_gpu: Some(caps.model_name_gpu),
             mem_size_gpu: Some(caps.mem_size_gpu),
+            resource_class_types: Some(caps.resource_class_types),
         }
     }
 }
 
-fn get_capabilities(runtimes: Vec<String>, user_node_capabilities: NodeCapabilitiesUser) -> edgeless_api::node_registration::NodeCapabilities {
+fn get_capabilities(
+    runtimes: Vec<String>,
+    user_node_capabilities: NodeCapabilitiesUser,
+    resource_provider_specifications: &[edgeless_api::node_registration::ResourceProviderSpecification],
+) -> edgeless_api::node_registration::NodeCapabilities {
     if !sysinfo::IS_SUPPORTED_SYSTEM {
         log::warn!("sysinfo does not support (yet) this OS");
     }
@@ -318,6 +325,11 @@ fn get_capabilities(runtimes: Vec<String>, user_node_capabilities: NodeCapabilit
     labels.sort();
     labels.dedup();
 
+    let mut resource_class_types = user_node_capabilities.resource_class_types.unwrap_or_default();
+    for spec in resource_provider_specifications {
+        resource_class_types.insert(spec.class_type.clone());
+    }
+
     edgeless_api::node_registration::NodeCapabilities {
         num_cpus: user_node_capabilities.num_cpus.unwrap_or(sys.cpus().len() as u32),
         model_name_cpu: user_node_capabilities.model_name_cpu.unwrap_or(model_name_cpu),
@@ -336,6 +348,7 @@ fn get_capabilities(runtimes: Vec<String>, user_node_capabilities: NodeCapabilit
         mem_size_gpu: user_node_capabilities
             .mem_size_gpu
             .unwrap_or((crate::gpu_info::get_mem_size_gpu() / (1024)) as u32),
+        resource_class_types,
     }
 }
 
@@ -381,6 +394,7 @@ async fn fill_resources(
                 provider_id,
                 class_type,
                 outputs: resources::http_ingress::HttpIngressResourceSpec {}.outputs(),
+                annotations: std::collections::HashMap::from([("node_id".to_string(), node_id.to_string())]),
             });
         }
 
@@ -412,6 +426,7 @@ async fn fill_resources(
                 provider_id,
                 class_type,
                 outputs: resources::http_egress::HttpEgressResourceSpec {}.outputs(),
+                annotations: std::collections::HashMap::from([("node_id".to_string(), node_id.to_string())]),
             });
         }
 
@@ -443,6 +458,7 @@ async fn fill_resources(
                 provider_id,
                 class_type,
                 outputs: resources::http_poster::HttpPosterResourceSpec {}.outputs(),
+                annotations: std::collections::HashMap::from([("node_id".to_string(), node_id.to_string())]),
             });
         }
 
@@ -476,6 +492,7 @@ async fn fill_resources(
                 provider_id,
                 class_type,
                 outputs: resources::file_pusher::FilePusherResourceSpec {}.outputs(),
+                annotations: std::collections::HashMap::from([("node_id".to_string(), node_id.to_string())]),
             });
         }
 
@@ -507,6 +524,7 @@ async fn fill_resources(
                 provider_id,
                 class_type,
                 outputs: resources::file_log::FileLogResourceSpec {}.outputs(),
+                annotations: std::collections::HashMap::from([("node_id".to_string(), node_id.to_string())]),
             });
         }
 
@@ -538,6 +556,7 @@ async fn fill_resources(
                 provider_id,
                 class_type,
                 outputs: resources::redis::RedisResourceSpec {}.outputs(),
+                annotations: std::collections::HashMap::from([("node_id".to_string(), node_id.to_string())]),
             });
         }
 
@@ -570,6 +589,7 @@ async fn fill_resources(
                 provider_id,
                 class_type,
                 outputs: resources::dda::DdaResourceSpec {}.outputs(),
+                annotations: std::collections::HashMap::from([("node_id".to_string(), node_id.to_string())]),
             });
         }
 
@@ -613,6 +633,7 @@ async fn fill_resources(
                 provider_id,
                 class_type,
                 outputs: resources::ollama::OllamaResourceSpec {}.outputs(),
+                annotations: std::collections::HashMap::from([("node_id".to_string(), node_id.to_string())]),
             });
         }
 
@@ -658,6 +679,7 @@ async fn fill_resources(
                         provider_id,
                         class_type: settings.class_type.clone(),
                         outputs: provider_spec.outputs(),
+                        annotations: std::collections::HashMap::from([("node_id".to_string(), node_id.to_string())]),
                     });
                 }
             }
@@ -693,6 +715,7 @@ async fn fill_resources(
                     provider_id,
                     class_type,
                     outputs: resources::kafka_egress::KafkaEgressResourceSpec {}.outputs(),
+                    annotations: std::collections::HashMap::from([("node_id".to_string(), node_id.to_string())]),
                 });
             }
             #[cfg(not(feature = "rdkafka"))]
@@ -730,6 +753,7 @@ async fn fill_resources(
                 provider_id,
                 class_type,
                 outputs: vec![],
+                annotations: std::collections::HashMap::from([("node_id".to_string(), node_id.to_string())]),
             });
         }
     }
@@ -934,7 +958,11 @@ pub async fn edgeless_node_main(settings: EdgelessNodeSettings) {
     let (_subscriber, subscriber_task, refresh_task) = node_subscriber::NodeSubscriber::new(
         settings.general,
         resource_provider_specifications.clone(),
-        get_capabilities(runtimes, settings.user_node_capabilities.unwrap_or(NodeCapabilitiesUser::empty())),
+        get_capabilities(
+            runtimes,
+            settings.user_node_capabilities.unwrap_or(NodeCapabilitiesUser::empty()),
+            &resource_provider_specifications,
+        ),
         settings.power_info,
         telemetry_performance_target,
     )

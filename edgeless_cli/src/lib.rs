@@ -53,6 +53,7 @@ pub fn workflow_spec_to_request(
                 class_type: res_spec.class_type,
                 output_mapping: res_spec.output_mapping,
                 configurations: res_spec.configurations,
+                annotations: res_spec.annotations,
             })
             .collect(),
         annotations: workflow_spec.annotations.clone(),
