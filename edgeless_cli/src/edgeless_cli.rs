@@ -119,8 +119,8 @@ enum Platform {
     WASM,
     X86,
     ARM,
-    MAC_ARM,
-    MAC_X86,
+    MacArm,
+    MacX86,
 }
 
 impl Platform {
@@ -129,8 +129,8 @@ impl Platform {
             Self::WASM => String::from("wasm32-unknown-unknown"),
             Self::X86 => String::from("x86_64-unknown-linux-gnu"),
             Self::ARM => String::from("aarch64-unknown-linux-gnu"),
-            Self::MAC_ARM => String::from("aarch64-apple-darwin"),
-            Self::MAC_X86 => String::from("x86_64-apple-darwin"),
+            Self::MacArm => String::from("aarch64-apple-darwin"),
+            Self::MacX86 => String::from("x86_64-apple-darwin"),
         }
     }
 
@@ -139,8 +139,8 @@ impl Platform {
             Self::WASM => format!("{}.wasm", id),
             Self::X86 => format!("{}_x86.so", id),
             Self::ARM => format!("{}_aarch.so", id),
-            Self::MAC_ARM => format!("{}_aarch.dylib", id),
-            Self::MAC_X86 => format!("{}_x86.dylib", id),
+            Self::MacArm => format!("{}_aarch.dylib", id),
+            Self::MacX86 => format!("{}_x86.dylib", id),
         }
     }
 
@@ -149,8 +149,8 @@ impl Platform {
             Self::WASM => String::from("wasm"),
             Self::X86 => String::from("so"),
             Self::ARM => String::from("so"),
-            Self::MAC_ARM => String::from("dylib"),
-            Self::MAC_X86 => String::from("dylib"),
+            Self::MacArm => String::from("dylib"),
+            Self::MacX86 => String::from("dylib"),
         }
     }
 
@@ -159,8 +159,8 @@ impl Platform {
             Self::WASM => String::from("WASM"),
             Self::X86 => String::from("x86"),
             Self::ARM => String::from("Arm"),
-            Self::MAC_ARM => String::from("Mac ARM"),
-            Self::MAC_X86 => String::from("Mac x86"),
+            Self::MacArm => String::from("Mac ARM"),
+            Self::MacX86 => String::from("Mac x86"),
         }
     }
 
@@ -169,8 +169,8 @@ impl Platform {
             "wasm" => Self::WASM,
             "x86" => Self::X86,
             "arm" => Self::ARM,
-            "mac-arm" => Self::MAC_ARM,
-            "mac-x86" => Self::MAC_X86,
+            "mac-arm" => Self::MacArm,
+            "mac-x86" => Self::MacX86,
             _ => Self::WASM,
         }
     }
@@ -413,7 +413,7 @@ async fn main() -> anyhow::Result<()> {
                         }
                     };
 
-                    let raw_result = build_dir
+                    let _raw_result = build_dir
                         .join(format!("{}/release/lib{}.{}", platform.target(), lib_name, platform.cargo_output_ext()))
                         .to_str()
                         .unwrap()
@@ -495,7 +495,7 @@ async fn main() -> anyhow::Result<()> {
 
                         let mut target_rustc_args = Vec::new();
                         match platform {
-                            Platform::MAC_ARM | Platform::MAC_X86 => {
+                            Platform::MacArm | Platform::MacX86 => {
                                 target_rustc_args.push("-C".to_string());
                                 target_rustc_args.push("link-args=-Wl,-undefined,dynamic_lookup".to_string());
                             }
