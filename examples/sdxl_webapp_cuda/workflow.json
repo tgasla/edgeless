@@ -63,15 +63,21 @@
                 "new_request": "sdxl_web_receiver"
             },
             "configurations": {
-                "host": "0.0.0.0",
-                "methods": "POST"
+                "method": "POST"
+            },
+            "annotations": {
+                "label_match_all": "os=darwin"
             }
         },
         {
             "name": "sdxl_webhook_egress",
             "class_type": "http-egress",
             "output_mapping": {},
-            "configurations": {}
+            "configurations": {},
+            "annotations": {
+                "label_match_all": "os=darwin"
+            }
         }
-    ]
+    ],
+    "annotations": {}
 }

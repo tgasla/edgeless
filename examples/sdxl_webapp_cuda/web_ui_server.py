@@ -68,10 +68,10 @@ class BridgeHandler(BaseHTTPRequestHandler):
             req_id = str(uuid.uuid4())
             PENDING_TASKS[req_id] = None
             
-            # Forward into Edgeless http-ingress
+            # Forward into Edgeless http-ingress (5 min timeout for AI inference)
             edgeless_payload = {"id": req_id, **body}
-            req = urllib.request.Request("http://127.0.0.1:7007/", data=json.dumps(edgeless_payload).encode(), headers={'Content-Type': 'application/json'})
-            urllib.request.urlopen(req)
+            req = urllib.request.Request("http://127.0.0.1:7010/", data=json.dumps(edgeless_payload).encode(), headers={'Content-Type': 'application/json'})
+            urllib.request.urlopen(req, timeout=300)
 
             # Wait for Edgeless to hit the webhook
             while PENDING_TASKS[req_id] is None:

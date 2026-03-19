@@ -19,7 +19,10 @@ struct ModelState {
     device: Device,
     unet: stable_diffusion::unet_2d::UNet2DConditionModel,
     vae: stable_diffusion::vae::AutoEncoderKL,
-    text_embeddings: Tensor,
+    text_encoder_1: stable_diffusion::clip::ClipTextTransformer,
+    text_encoder_2: stable_diffusion::clip::ClipTextTransformer,
+    tokenizer: tokenizers::Tokenizer,
+    sd_config: StableDiffusionConfig,
 }
 
 unsafe impl Send for ModelState {}
@@ -31,7 +34,7 @@ static FRAME_COUNTER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU3
 const SD_HEIGHT: usize = 512;
 const SD_WIDTH: usize = 512;
 const VAE_SCALE: f64 = 0.13025;
-const PROMPT: &str = "a beautiful cinematic fantasy landscape, vibrant colors, epic volumetric lighting, detailed, ultra high quality, 4k";
+const DEFAULT_PROMPT: &str = "a beautiful cinematic fantasy landscape, vibrant colors, epic volumetric lighting, detailed, ultra high quality, 4k";
 
 impl EdgeFunction for AIEngine {
     fn handle_init(_payload: Option<&[u8]>, _init_metadata: Option<&[u8]>) {
@@ -93,8 +96,8 @@ impl EdgeFunction for AIEngine {
             .expect("Failed to download tokenizer.json");
         let tokenizer = tokenizers::Tokenizer::from_file(tokenizer_path).expect("Failed to load tokenizer");
 
-        log::info!("AI Engine: Encoding prompt: \"{}\"", PROMPT);
-        let tokens = tokenizer.encode(PROMPT, true).expect("Failed to encode prompt");
+        log::info!("AI Engine: Encoding prompt: \"{}\"", DEFAULT_PROMPT);
+        let tokens = tokenizer.encode(DEFAULT_PROMPT, true).expect("Failed to encode prompt");
         let mut input_ids = vec![0u32; 77];
         for (i, &id) in tokens.get_ids().iter().take(77).enumerate() {
             input_ids[i] = id;
@@ -112,13 +115,16 @@ impl EdgeFunction for AIEngine {
             device,
             unet,
             vae,
-            text_embeddings,
+            text_encoder_1,
+            text_encoder_2,
+            tokenizer,
+            sd_config,
         });
     }
 
     fn handle_cast(_src: InstanceId, msg: &[u8]) {
         // Define an inner function so we can use the '?' operator
-        let mut process = || -> Result<(), Box<dyn std::error::Error>> {
+        let process = || -> Result<(), Box<dyn std::error::Error>> {
             let frame_id = FRAME_COUNTER.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             let guard = MODEL.lock().unwrap();
             let state = guard.as_ref().ok_or("AI Engine: Model not initialized!")?;
@@ -146,7 +152,27 @@ impl EdgeFunction for AIEngine {
             let encoded = state.vae.encode(&img_tensor)?;
             let latents = encoded.sample()?.affine(VAE_SCALE, 0.0)?.to_dtype(DType::F16)?;
 
-            // --- 2. DYNAMIC MATH CALCULATION ---
+            // --- 2. ENCODE USER'S PROMPT ---
+            let prompt = if web_payload.prompt.is_empty() {
+                DEFAULT_PROMPT.to_string()
+            } else {
+                web_payload.prompt.clone()
+            };
+            log::info!("AI Engine: Using prompt: \"{}\"", prompt);
+
+            let tokens = state.tokenizer.encode(prompt.as_str(), true).expect("Failed to encode prompt");
+            let mut input_ids = vec![0u32; 77];
+            for (i, &id) in tokens.get_ids().iter().take(77).enumerate() {
+                input_ids[i] = id;
+            }
+            let input_ids = Tensor::from_vec(input_ids, (1, 77), &state.device)?.to_dtype(DType::U32)?;
+
+            // Extract and concatenate embeddings
+            let emb1 = state.text_encoder_1.forward(&input_ids).expect("Failed to encode text 1");
+            let emb2 = state.text_encoder_2.forward(&input_ids).expect("Failed to encode text 2");
+            let text_embeddings = Tensor::cat(&[&emb1, &emb2], 2).expect("Failed to concat embeddings");
+
+            // --- 3. DYNAMIC MATH CALCULATION ---
             let timestep = web_payload.timestep;
 
             // Calculate the exact SDXL noise schedule dynamically to bypass the private Scheduler API
@@ -168,11 +194,11 @@ impl EdgeFunction for AIEngine {
             // Mix: x_t = (x_0 * alpha_root) + (noise * noise_root)
             let latents_noisy = latents.affine(alpha_root, 0.0)?.add(&noise.affine(noise_root, 0.0)?)?;
 
-            // --- 3. UNET INFERENCE ---
-            let context = state.text_embeddings.to_dtype(DType::F16)?;
+            // --- 4. UNET INFERENCE ---
+            let context = text_embeddings.to_dtype(DType::F16)?;
             let noise_pred = state.unet.forward(&latents_noisy, timestep as f64, &context)?;
 
-            // --- 4. RECOVER IMAGE ---
+            // --- 5. RECOVER IMAGE ---
             // x_0 = (x_t - predicted_noise * noise_root) / alpha_root
             let noise_scaled = noise_pred.affine(noise_root, 0.0)?;
             let denoised = latents_noisy.sub(&noise_scaled)?.affine(1.0 / alpha_root, 0.0)?;
@@ -193,7 +219,7 @@ impl EdgeFunction for AIEngine {
                 })
                 .collect();
 
-            // 5. Package and Cast
+            // 6. Package and Cast
             let img_buf = image::RgbImage::from_raw(SD_WIDTH as u32, SD_HEIGHT as u32, rgb_data).ok_or("Failed to create image buffer")?;
 
             let mut png_bytes: Vec<u8> = Vec::new();

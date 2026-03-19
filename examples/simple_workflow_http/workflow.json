@@ -75,8 +75,7 @@
                 "new_request": "external_trigger"
             },
             "configurations": {
-                "host": "demo.edgeless-project.eu",
-                "methods": "POST"
+                "method": "POST"
             }
         },
         {
