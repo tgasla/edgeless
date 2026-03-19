@@ -49,7 +49,6 @@ impl EdgeFunction for SdxlWebSender {
         }
 
         // Also save to database for history
-        // Parse the message to extract session_id, source_image, prompt, and generated_image
         if let Ok(data) = serde_json::from_str::<serde_json::Value>(msg_str) {
             let session_id = data.get("id").and_then(|v| v.as_str()).unwrap_or("default").to_string();
             let source_image = data.get("source_image_b64").and_then(|v| v.as_str()).unwrap_or("");

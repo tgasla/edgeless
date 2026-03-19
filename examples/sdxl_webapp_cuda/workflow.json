@@ -60,10 +60,12 @@
             "name": "db_writer",
             "class_specification": {
                 "id": "db_writer",
-                "function_type": "RUST_WASM",
+                "function_type": "RUST_X86",
                 "version": "0.1",
-                "code": "../../functions/image_history_db/image_history_db.wasm",
-                "outputs": []
+                "code": "../../functions/db_writer/db_writer_x86.so",
+                "outputs": [
+                    "database"
+                ]
             },
             "output_mapping": {
                 "database": "sqlx_db"
@@ -101,7 +103,7 @@
             "class_type": "sqlx",
             "output_mapping": {},
             "configurations": {
-                "url": "sqlite://sqlite.db"
+                "url": "sqlite://image_history.db"
             },
             "annotations": {
                 "label_match_all": "os=linux,arch=x86_64"
