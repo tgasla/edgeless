@@ -1,63 +1,388 @@
-import os, json, uuid, time
+import os
+import json
+import uuid
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import urllib.request
 
 PORT = 8080
 PENDING_TASKS = {}
 
-HTML_UI = """
-<!DOCTYPE html>
-<html>
-<head><title>Edgeless AI Generator</title><style>body{font-family:sans-serif; padding:20px;} .container{max-width:600px; margin:auto;} input, button{width:100%; margin-top:10px; padding:10px;}</style></head>
+HTML_UI = """<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Engine Studio</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        .container {
+            background: #1e1e1e;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        h2 {
+            margin: 0 0 10px 0;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        label {
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .upload-area {
+            background: #2c2c2c;
+            border: 2px dashed #444;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .upload-area:hover {
+            border-color: #007bff;
+            background: rgba(0, 123, 255, 0.05);
+        }
+
+        .upload-area.dragover {
+            border-color: #007bff;
+            background: rgba(0, 123, 255, 0.1);
+        }
+
+        .upload-area input {
+            display: none;
+        }
+
+        .upload-text {
+            color: #aaa;
+        }
+
+        .upload-text small {
+            display: block;
+            margin-top: 5px;
+            color: #666;
+        }
+
+        #previewImage {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 6px;
+            display: none;
+            margin-top: 10px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        textarea {
+            background: #2c2c2c;
+            border: 1px solid #444;
+            color: white;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 16px;
+            width: 100%;
+            box-sizing: border-box;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #007bff;
+        }
+
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .slider-value {
+            background: #2c2c2c;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #007bff;
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #2c2c2c;
+            appearance: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #007bff;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #0056b3;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 15px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        button:hover {
+            background: #0056b3;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #loading {
+            display: none;
+            text-align: center;
+            font-weight: bold;
+            color: #007bff;
+            padding: 10px;
+            background: rgba(0, 123, 255, 0.1);
+            border-radius: 6px;
+        }
+
+        #loading small {
+            display: block;
+            margin-top: 5px;
+            font-weight: normal;
+            color: #888;
+        }
+
+        #resultImage {
+            width: 100%;
+            border-radius: 8px;
+            margin-top: 10px;
+            display: none;
+            border: 2px dashed #444;
+            object-fit: contain;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+    </style>
+</head>
+
 <body>
-<div class="container">
-    <h2>Edgeless Image-to-Image</h2>
-    <input type="file" id="imageInput" accept="image/png, image/jpeg">
-    <input type="text" id="promptInput" placeholder="Enter your prompt..." value="A beautiful cinematic fantasy landscape, 4k">
-    <label>Creativity (Timesteps): <span id="tempVal">350</span></label>
-    <input type="range" id="tempInput" min="100" max="600" value="350" oninput="document.getElementById('tempVal').innerText=this.value">
-    <button onclick="generate()">Generate ✨</button>
-    <div id="status" style="margin-top:10px; font-weight:bold;"></div>
-    <img id="resultImg" style="width:100%; margin-top:20px; border-radius:10px; display:none;">
-</div>
-<script>
-async function generate() {
-    const file = document.getElementById('imageInput').files[0];
-    if (!file) return alert("Upload an image first!");
-    
-    document.getElementById('status').innerText = "Processing in Edgeless Cluster...";
-    document.getElementById('resultImg').style.display = "none";
-    
-    const reader = new FileReader();
-    reader.onload = async function() {
-        const base64 = reader.result.split(',')[1]; // Strip data header
-        const payload = {
-            prompt: document.getElementById('promptInput').value,
-            timestep: parseInt(document.getElementById('tempInput').value),
-            image_base64: base64
-        };
-        
-        const res = await fetch('/generate', { method: 'POST', body: JSON.stringify(payload) });
-        const data = await res.json();
-        
-        document.getElementById('resultImg').src = "data:image/png;base64," + data.image_base64;
-        document.getElementById('resultImg').style.display = "block";
-        document.getElementById('status').innerText = "Done!";
-    };
-    reader.readAsDataURL(file);
-}
-</script>
+
+    <div class="container">
+        <h2>AI Generation Studio</h2>
+
+        <div class="input-group">
+            <label>Upload Starting Image:</label>
+            <div class="upload-area" id="uploadArea">
+                <input type="file" id="imageInput" accept="image/png, image/jpeg">
+                <div class="upload-text" id="uploadText">
+                    Click to upload or drag and drop
+                    <small>PNG, JPG up to 10MB</small>
+                </div>
+                <img id="previewImage" alt="Preview">
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>Prompt:</label>
+            <textarea id="promptInput"
+                rows="3">A beautiful cinematic fantasy landscape, vibrant colors, epic volumetric lighting, detailed, ultra high quality, 4k</textarea>
+        </div>
+
+        <div class="slider-container">
+            <div class="slider-header">
+                <label>Creativity:</label>
+                <span class="slider-value" id="timestepValue">350</span>
+            </div>
+            <input type="range" id="timestepInput" min="100" max="600" value="350">
+        </div>
+
+        <button id="generateBtn">Generate Magic</button>
+        <div id="loading">Processing in Edgeless Cluster...<small>This might take a few seconds</small></div>
+
+        <img id="resultImage" alt="Generated Output">
+    </div>
+
+    <script>
+        const imageInput = document.getElementById('imageInput');
+        const uploadArea = document.getElementById('uploadArea');
+        const uploadText = document.getElementById('uploadText');
+        const previewImage = document.getElementById('previewImage');
+        const timestepInput = document.getElementById('timestepInput');
+        const timestepValue = document.getElementById('timestepValue');
+        const generateBtn = document.getElementById('generateBtn');
+        const loading = document.getElementById('loading');
+        const resultImage = document.getElementById('resultImage');
+
+        // Update slider value display
+        timestepInput.addEventListener('input', () => {
+            timestepValue.textContent = timestepInput.value;
+        });
+
+        // Handle file input click
+        uploadArea.addEventListener('click', () => imageInput.click());
+
+        // Handle file selection
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImage.src = e.target.result;
+                    previewImage.style.display = 'block';
+                    uploadText.style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                imageInput.files = e.dataTransfer.files;
+                const event = new Event('change');
+                imageInput.dispatchEvent(event);
+            }
+        });
+
+        generateBtn.addEventListener('click', async () => {
+            const file = imageInput.files[0];
+            if (!file) {
+                alert("Please upload an image first!");
+                return;
+            }
+
+            // Lock the UI
+            generateBtn.disabled = true;
+            loading.style.display = 'block';
+            resultImage.style.display = 'none';
+
+            try {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+
+                reader.onload = async () => {
+                    const base64String = reader.result.split(',')[1];
+
+                    const payload = {
+                        prompt: document.getElementById('promptInput').value,
+                        timestep: parseInt(timestepInput.value),
+                        image_base64: base64String
+                    };
+
+                    const EDGELESS_URL = "/generate";
+
+                    const response = await fetch(EDGELESS_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) throw new Error("Server returned " + response.status);
+
+                    const data = await response.json();
+
+                    resultImage.src = "data:image/png;base64," + data.image_base64;
+                    resultImage.style.display = 'block';
+
+                    generateBtn.disabled = false;
+                    loading.style.display = 'none';
+                };
+            } catch (error) {
+                alert("Error during generation: " + error.message);
+                generateBtn.disabled = false;
+                loading.style.display = 'none';
+            }
+        });
+    </script>
 </body>
+
 </html>
 """
 
+
 class BridgeHandler(BaseHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass  # Suppress HTTP logging
+
     def do_GET(self):
         if self.path == '/':
             self.send_response(200)
             self.send_header('Content-Type', 'text/html')
             self.end_headers()
             self.wfile.write(HTML_UI.encode())
+        else:
+            self.send_response(404)
+            self.end_headers()
 
     def do_POST(self):
         length = int(self.headers.get('Content-Length', 0))
@@ -67,10 +392,14 @@ class BridgeHandler(BaseHTTPRequestHandler):
         if self.path == '/generate':
             req_id = str(uuid.uuid4())
             PENDING_TASKS[req_id] = None
-            
+
             # Forward into Edgeless http-ingress (5 min timeout for AI inference)
             edgeless_payload = {"id": req_id, **body}
-            req = urllib.request.Request("http://127.0.0.1:7010/", data=json.dumps(edgeless_payload).encode(), headers={'Content-Type': 'application/json'})
+            req = urllib.request.Request(
+                "http://127.0.0.1:7007/",
+                data=json.dumps(edgeless_payload).encode(),
+                headers={'Content-Type': 'application/json'}
+            )
             urllib.request.urlopen(req, timeout=300)
 
             # Wait for Edgeless to hit the webhook
@@ -91,6 +420,11 @@ class BridgeHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.end_headers()
             self.wfile.write(b"OK")
+        else:
+            self.send_response(404)
+            self.end_headers()
+
 
 if __name__ == "__main__":
+    print(f"Starting web UI server on http://localhost:{PORT}")
     ThreadingHTTPServer(("", PORT), BridgeHandler).serve_forever()
