@@ -14,11 +14,6 @@ struct HistoryEntry {
     created_at: String,
 }
 
-#[derive(serde::Serialize)]
-struct QueryResponse {
-    entries: Vec<HistoryEntry>,
-}
-
 fn call_wrapper(msg: &str) -> Option<String> {
     match call("database", msg.as_bytes()) {
         CallRet::Reply(data) => {
@@ -76,8 +71,7 @@ impl EdgeFunction for DbReader {
                     }
                 }
 
-                let response = QueryResponse { entries };
-                if let Ok(json) = serde_json::to_string(&response) {
+                if let Ok(json) = serde_json::to_string(&entries) {
                     return CallRet::Reply(OwnedByteBuff::new_from_slice(json.as_bytes()));
                 }
             }
