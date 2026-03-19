@@ -3,7 +3,6 @@
 // SPDX-FileCopyrightText: © 2023 Siemens AG
 // SPDX-License-Identifier: MIT
 
-use std::path::PathBuf;
 
 //use edgeless_api::orc::OrchestratorAPI;
 use resources::resource_provider_specs::ResourceProviderSpecs;

@@ -1,18 +1,13 @@
 // SPDX-FileCopyrightText: © 2024 Roman Kolcun <roman.kolcun@cl.cam.ac.uk>
 // SPDX-License-Identifier: MIT
 
-use chrono::ParseWeekdayError;
 
 use libloading::{Library, Symbol};
-use serde_json::value::to_raw_value;
 use std::fs::File;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::io::prelude::*;
-use futures::TryFutureExt;
 
-use crate::base_runtime::guest_api::GuestAPIError;
-use edgeless_function::memory;
 
 type HandleInitFun = fn (*mut u8, usize,  *mut u8, usize);
 type HandleCallFun = fn (*mut u8, *mut u8, *mut u8, usize, *mut *const u8, *mut usize) -> i32;
@@ -22,10 +17,8 @@ type SetGuestAPIHostPointer = extern "C" fn (*const usize);
 
 pub struct NativeFunctionInstance {
     guest_api_host: crate::base_runtime::guest_api::GuestAPIHost,
-    library: Library, 
-    instance_id: edgeless_api::function_instance::InstanceId,
+    library: Library,
     code_file_path: PathBuf,
-    native_runtime_api: Option<Box<dyn edgeless_api::native_runtime::NativeRuntimeAPI + Send>>,
 }
 
 fn level_from_i32(lvl: i32) -> edgeless_telemetry::telemetry_events::TelemetryLogLevel {
@@ -81,10 +74,8 @@ impl crate::base_runtime::FunctionInstance for NativeFunctionInstance {
             
             Ok(Box::new(Self {
                 guest_api_host: guest_api_host.take().expect("No GuestAPIHost"),
-                library: lib, 
-                instance_id: instance_id.to_owned(),
+                library: lib,
                 code_file_path: code_path.to_owned(),
-                native_runtime_api: None,  
             }))
         }
     }
@@ -164,8 +155,8 @@ impl crate::base_runtime::FunctionInstance for NativeFunctionInstance {
             let node_id = src.node_id.as_bytes();
             let component_id = src.function_id.as_bytes();
 
-            let node_id_str = std::str::from_utf8_unchecked(node_id);
-            let component_id_str = std::str::from_utf8_unchecked(component_id);
+            let _node_id_str = std::str::from_utf8_unchecked(node_id);
+            let _component_id_str = std::str::from_utf8_unchecked(component_id);
             handle_cast_fun(
                 node_id.as_ptr() as *mut u8, 
                 component_id.as_ptr() as *mut u8,
@@ -222,7 +213,7 @@ impl NativeFunctionInstance {
 
         let payload: &str = unsafe { std::str::from_utf8(core::slice::from_raw_parts(payload_ptr, payload_len)).unwrap() };
 
-        let future = tokio::task::block_in_place(|| {
+        let _future = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
                 self.guest_api_host.call_raw(instance_id, payload).await
             })
@@ -246,7 +237,7 @@ impl NativeFunctionInstance {
 
         //println!("Native RT: Cast: Target: {} Payload: {}", target, payload);
         
-        let future = tokio::task::block_in_place(|| {
+        let _future = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
                 self.guest_api_host.cast_alias(target, payload).await
             })
@@ -264,8 +255,8 @@ impl NativeFunctionInstance {
         instance_component_id_ptr: *const u8,
         payload_ptr: *const u8,
         payload_len: usize,
-        out_ptr_ptr: *mut *mut u8,
-        out_len_ptr: *mut usize,
+        _out_ptr_ptr: *mut *mut u8,
+        _out_len_ptr: *mut usize,
     ) -> i32 {
         let mut node_id: [u8; 16] = [0; 16];
         let mut component_id: [u8; 16] = [0; 16];
@@ -296,7 +287,7 @@ impl NativeFunctionInstance {
                 edgeless_dataplane::core::CallRet::Err => { log::debug!("Native RT Reply Err"); 2 },
 
             },
-            Err(GuestAPIError) => { log::info!("Native RT Call Raw GuestAPIError"); 3 },
+            Err(_guest_api_error) => { log::info!("Native RT Call Raw guest_api_error"); 3 },
         };
 
         0
@@ -348,7 +339,7 @@ impl NativeFunctionInstance {
                 },
                 edgeless_dataplane::core::CallRet::Err => { log::debug!("Native RT Reply with err"); 2 },
             },
-            Err(GuestAPIError) => { log::info!("Native RT GuesAPIError"); 3 },
+            Err(_guest_api_error) => { log::info!("Native RT guest_api_error"); 3 },
         }
 
          
@@ -369,7 +360,7 @@ impl NativeFunctionInstance {
 
         log::info!("Native RT: Log: Level: {} Target: {} msg: {}", level, target, msg);
 
-        let future = tokio::task::block_in_place(|| { 
+        let _future = tokio::task::block_in_place(|| { 
             tokio::runtime::Handle::current().block_on( async {
                 self.guest_api_host.telemetry_log(lvl, target, msg).await
             })
@@ -413,7 +404,7 @@ impl NativeFunctionInstance {
         
         log::debug!("Native RT: Delayed Cast: Delay: {} Target: {} Payload: {}", delay_ms, target, payload);
         
-        let future = tokio::task::block_in_place(|| {
+        let _future = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on( async {
                 self.guest_api_host.delayed_cast(delay_ms, &target, &payload).await
             })
@@ -434,7 +425,7 @@ impl NativeFunctionInstance {
 
         log::debug!("Native RT: state: {}", state);
         
-        let future = tokio::task::block_in_place(|| {
+        let _future = tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
                 self.guest_api_host.sync(state).await
             })
