@@ -247,10 +247,12 @@ HTML_UI = """<!DOCTYPE html>
         }
 
         #historyContent.history-loading {
-            display: block;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             text-align: center;
             color: #888;
-            padding: 20px;
+            min-height: 100px;
         }
 
         .history-item {
@@ -531,6 +533,17 @@ HTML_UI = """<!DOCTYPE html>
                     resultImage.src = "data:image/png;base64," + data.image_base64;
                     resultImage.style.display = 'block';
 
+                    // Prepend generated item to history
+                    const newItem = {
+                        id: data.session_id,
+                        prompt: payload.prompt,
+                        creativity: payload.creativity,
+                        source_image_b64: payload.image_base64,
+                        generated_image_b64: data.image_base64,
+                        created_at: new Date().toLocaleString()
+                    };
+                    prependHistoryItem(newItem);
+
                     generateBtn.disabled = false;
                     loading.style.display = 'none';
                 };
@@ -576,6 +589,40 @@ HTML_UI = """<!DOCTYPE html>
             historyBtn.disabled = false;
         });
 
+        function buildHistoryItemHtml(item) {
+            const prompt = item.prompt || 'No prompt';
+            const time = item.created_at || 'Unknown time';
+            const creativity = item.creativity || 'N/A';
+            const sourceImg = item.source_image_b64 ? 'data:image/png;base64,' + item.source_image_b64 : '';
+            const generatedImg = item.generated_image_b64 ? 'data:image/png;base64,' + item.generated_image_b64 : '';
+
+            return `
+                <div class="history-item">
+                    <div class="history-item-header">
+                        <p class="history-item-prompt" title="Click to expand" onclick="this.classList.toggle('expanded')">${prompt}</p>
+                        <span class="history-item-time">${time}</span>
+                    </div>
+                    <div class="history-item-meta">Creativity: ${creativity}</div>
+                    <div class="history-item-images">
+                        ${sourceImg ? `<img src="${sourceImg}" alt="Source" title="Click to view" onclick="openImageModal('${sourceImg}')">` : '<img alt="No source">'}
+                        ${generatedImg ? `<img src="${generatedImg}" alt="Generated" title="Click to view" onclick="openImageModal('${generatedImg}')">` : '<img alt="No result">'}
+                    </div>
+                </div>
+            `;
+        }
+
+        function prependHistoryItem(item) {
+            // Remove "empty" message if present
+            const emptyMsg = historyContent.querySelector('.history-empty');
+            if (emptyMsg) {
+                emptyMsg.remove();
+            }
+
+            displayedHistoryIds.add(item.id);
+            const newHtml = buildHistoryItemHtml(item);
+            historyContent.insertAdjacentHTML('afterbegin', newHtml);
+        }
+
         function displayHistory(items) {
             if (!items || items.length === 0) {
                 if (displayedHistoryIds.size === 0) {
@@ -584,41 +631,16 @@ HTML_UI = """<!DOCTYPE html>
                 return;
             }
 
-            // Filter out already displayed items and prepend new ones
+            // Filter out already displayed items
             const newItems = items.filter(item => !displayedHistoryIds.has(item.id));
             if (newItems.length === 0) {
                 return; // Nothing new to display
             }
 
-            // Build HTML for new items (in correct order - newest first)
-            const existingHtml = historyContent.innerHTML;
-            let newHtml = '';
-
-            for (const item of newItems) {
-                const prompt = item.prompt || 'No prompt';
-                const time = item.created_at || 'Unknown time';
-                const creativity = item.creativity || 'N/A';
-                const sourceImg = item.source_image_b64 ? 'data:image/png;base64,' + item.source_image_b64 : '';
-                const generatedImg = item.generated_image_b64 ? 'data:image/png;base64,' + item.generated_image_b64 : '';
-
-                newHtml += `
-                    <div class="history-item">
-                        <div class="history-item-header">
-                            <p class="history-item-prompt" title="Click to expand" onclick="this.classList.toggle('expanded')">${prompt}</p>
-                            <span class="history-item-time">${time}</span>
-                        </div>
-                        <div class="history-item-meta">Creativity: ${creativity}</div>
-                        <div class="history-item-images">
-                            ${sourceImg ? `<img src="${sourceImg}" alt="Source" title="Click to view" onclick="openImageModal('${sourceImg}')">` : '<img alt="No source">'}
-                            ${generatedImg ? `<img src="${generatedImg}" alt="Generated" title="Click to view" onclick="openImageModal('${generatedImg}')">` : '<img alt="No result">'}
-                        </div>
-                    </div>
-                `;
-                displayedHistoryIds.add(item.id);
+            // Prepend new items (oldest first so newest appears at top)
+            for (const item of newItems.reverse()) {
+                prependHistoryItem(item);
             }
-
-            // Prepend new items to existing ones
-            historyContent.innerHTML = newHtml + existingHtml;
         }
     </script>
 </body>
@@ -667,7 +689,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
             self.end_headers()
-            self.wfile.write(json.dumps({"image_base64": result_b64}).encode())
+            self.wfile.write(json.dumps({"image_base64": result_b64, "session_id": req_id}).encode())
 
         # 2. Edgeless visualizer sends the result back
         elif self.path == '/webhook':
