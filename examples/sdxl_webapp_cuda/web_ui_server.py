@@ -633,8 +633,9 @@ HTML_UI = """<!DOCTYPE html>
                 emptyMsg.remove();
             }
 
-            // Use session_id as the unique id for history items from DB
-            const itemId = item.id || item.session_id;
+            // Use session_id for deduplication when available (DB items have session_id)
+            // For newly generated items, session_id is in item.id
+            const itemId = item.session_id || item.id;
             console.log('Adding itemId to displayedHistoryIds:', itemId);
             displayedHistoryIds.add(itemId);
             const newHtml = buildHistoryItemHtml(item);
@@ -652,8 +653,9 @@ HTML_UI = """<!DOCTYPE html>
             }
 
             // Filter out already displayed items using session_id (DB items) or id (newly generated)
+            // session_id is the UUID that ties DB items to their generated counterparts
             const newItems = items.filter(item => {
-                const itemId = item.id || item.session_id;
+                const itemId = item.session_id || item.id;
                 return !displayedHistoryIds.has(itemId);
             });
             console.log('newItems after filter:', newItems.length);
