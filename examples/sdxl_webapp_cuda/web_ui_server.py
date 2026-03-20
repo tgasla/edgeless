@@ -594,21 +594,27 @@ HTML_UI = """<!DOCTYPE html>
             historyLoading.style.display = 'block';
             historyContent.style.display = 'none';
 
-            console.log('Load History clicked, wasEmpty:', wasEmpty);
+            console.log('Load History clicked');
 
             try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000);
+
                 const response = await fetch('/history', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({})
+                    body: JSON.stringify({}),
+                    signal: controller.signal
                 });
+
+                clearTimeout(timeoutId);
 
                 console.log('Fetch response status:', response.status);
 
                 if (!response.ok) throw new Error("Server returned " + response.status);
 
                 const data = await response.json();
-                console.log('Fetch returned data, length:', Array.isArray(data) ? data.length : 'not array');
+                console.log('Fetch returned data:', JSON.stringify(data).substring(0, 500));
 
                 historyLoading.style.display = 'none';
                 historyContent.style.display = 'block';
@@ -616,9 +622,9 @@ HTML_UI = """<!DOCTYPE html>
             } catch (error) {
                 console.log('Fetch error:', error.message);
                 historyLoading.style.display = 'none';
+                historyContent.style.display = 'block';
                 if (displayedHistoryIds.size === 0) {
                     historyContent.innerHTML = '<div class="history-empty">Error loading history: ' + error.message + '</div>';
-                    historyContent.style.display = 'block';
                 }
             }
 
