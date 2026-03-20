@@ -9,7 +9,7 @@ struct SaveRequest {
     source_image_b64: String,
     prompt: String,
     generated_image_b64: String,
-    timestep: u32,
+    creativity: u32,
 }
 
 fn call_wrapper(msg: &str) -> Option<OwnedByteBuff> {
@@ -50,7 +50,7 @@ impl EdgeFunction for DbWriter {
                     source_image_b64 TEXT,
                     prompt TEXT,
                     generated_image_b64 TEXT,
-                    timestep INTEGER,
+                    creativity INTEGER,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )"
             );
@@ -63,12 +63,12 @@ impl EdgeFunction for DbWriter {
             log::info!("db_writer: received save request");
             if let Ok(save_req) = serde_json::from_str::<SaveRequest>(json_str) {
                 let sql = format!(
-                    "INSERT INTO image_history (session_id, source_image_b64, prompt, generated_image_b64, timestep) VALUES ('{}', '{}', '{}', '{}', {})",
+                    "INSERT INTO image_history (session_id, source_image_b64, prompt, generated_image_b64, creativity) VALUES ('{}', '{}', '{}', '{}', {})",
                     escape_sql(&save_req.session_id),
                     escape_sql(&save_req.source_image_b64),
                     escape_sql(&save_req.prompt),
                     escape_sql(&save_req.generated_image_b64),
-                    save_req.timestep
+                    save_req.creativity
                 );
                 if let Some(_result) = call_wrapper(&sql) {
                     log::info!("db_writer: saved successfully");
@@ -98,14 +98,14 @@ impl EdgeFunction for DbWriter {
                         source_image_b64 TEXT,
                         prompt TEXT,
                         generated_image_b64 TEXT,
-                        timestep INTEGER,
+                        creativity INTEGER,
                         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                     )"
                 );
             });
 
             // Query history - limit to 20 most recent
-            let query = "SELECT id, session_id, source_image_b64, prompt, generated_image_b64, timestep, created_at FROM image_history ORDER BY id DESC LIMIT 20";
+            let query = "SELECT id, session_id, source_image_b64, prompt, generated_image_b64, creativity, created_at FROM image_history ORDER BY id DESC LIMIT 20";
 
             if let Some(result) = call_wrapper(query) {
                 log::info!("db_writer: history query returned data");

@@ -48,31 +48,37 @@ impl EdgeFunction for AIEngine {
         });
         log::info!("AI Engine: Using device: {:?}", device);
 
+        // hf_hub::Api uses ~/.cache/huggingface/hub by default
+        // It automatically checks cache first, downloads only if missing
         let api = hf_hub::api::sync::Api::new().expect("Failed to create HF API");
 
-        // --- SDXL Turbo ---
-        log::info!("AI Engine: Downloading SDXL Turbo weights...");
-
+        log::info!("AI Engine: Loading/ downloading SDXL Turbo weights...");
         let sdxl_unet_path = api
             .model("stabilityai/sdxl-turbo".into())
             .get("unet/diffusion_pytorch_model.safetensors")
-            .expect("Failed to download SDXL Turbo UNet");
+            .expect("Failed to get SDXL Turbo UNet");
 
         let sdxl_vae_path = api
             .model("madebyollin/sdxl-vae-fp16-fix".into())
             .get("diffusion_pytorch_model.safetensors")
-            .expect("Failed to download SDXL VAE");
+            .expect("Failed to get SDXL VAE");
 
-        log::info!("AI Engine: Downloading SDXL Text Encoders...");
+        log::info!("AI Engine: Loading/ downloading SDXL Text Encoders...");
         let clip1_path = api
             .model("stabilityai/sdxl-turbo".into())
             .get("text_encoder/model.safetensors")
-            .expect("Failed to download text_encoder");
+            .expect("Failed to get text_encoder");
 
         let clip2_path = api
             .model("stabilityai/sdxl-turbo".into())
             .get("text_encoder_2/model.safetensors")
-            .expect("Failed to download text_encoder_2");
+            .expect("Failed to get text_encoder_2");
+
+        log::info!("AI Engine: Loading/ downloading Tokenizer...");
+        let tokenizer_path = api
+            .model("openai/clip-vit-large-patch14".into())
+            .get("tokenizer.json")
+            .expect("Failed to get tokenizer.json");
 
         let sd_config = StableDiffusionConfig::sdxl_turbo(None, Some(SD_HEIGHT), Some(SD_WIDTH));
 
@@ -90,11 +96,6 @@ impl EdgeFunction for AIEngine {
         let text_encoder_2 = stable_diffusion::clip::ClipTextTransformer::new(vb_clip2, sd_config.clip2.as_ref().unwrap())
             .expect("Failed to build CLIP2 text encoder");
 
-        log::info!("AI Engine: Downloading Tokenizer...");
-        let tokenizer_path = api
-            .model("openai/clip-vit-large-patch14".into())
-            .get("tokenizer.json")
-            .expect("Failed to download tokenizer.json");
         let tokenizer = tokenizers::Tokenizer::from_file(tokenizer_path).expect("Failed to load tokenizer");
 
         log::info!("AI Engine: Encoding prompt: \"{}\"", DEFAULT_PROMPT);

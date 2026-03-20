@@ -54,14 +54,14 @@ impl EdgeFunction for SdxlWebSender {
             let source_image = data.get("source_image_b64").and_then(|v| v.as_str()).unwrap_or("");
             let prompt = data.get("prompt").and_then(|v| v.as_str()).unwrap_or("");
             let generated_image = data.get("image_base64").and_then(|v| v.as_str()).unwrap_or("");
-            let timestep = data.get("timestep").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+            let creativity = data.get("creativity").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
 
             let save_request = serde_json::json!({
                 "session_id": session_id,
                 "source_image_b64": source_image,
                 "prompt": prompt,
                 "generated_image_b64": generated_image,
-                "timestep": timestep
+                "creativity": creativity
             });
 
             let save_msg = format!("SAVE:{}", serde_json::to_string(&save_request).unwrap_or_default());

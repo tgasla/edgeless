@@ -10,7 +10,7 @@ struct HistoryEntry {
     source_image_b64: String,
     prompt: String,
     generated_image_b64: String,
-    timestep: u32,
+    creativity: u32,
     created_at: String,
 }
 
@@ -50,7 +50,7 @@ impl EdgeFunction for DbReader {
         if msg_str.starts_with("GET_HISTORY") {
             log::info!("db_reader: received GET_HISTORY request");
 
-            let query = "SELECT id, session_id, source_image_b64, prompt, generated_image_b64, timestep, created_at FROM image_history ORDER BY id DESC LIMIT 20";
+            let query = "SELECT id, session_id, source_image_b64, prompt, generated_image_b64, creativity, created_at FROM image_history ORDER BY id DESC LIMIT 20";
 
             if let Some(result) = call_wrapper(query) {
                 log::info!("db_reader: got history data from database");
@@ -65,7 +65,7 @@ impl EdgeFunction for DbReader {
                             source_image_b64: parts[2].trim().to_string(),
                             prompt: parts[3].trim().to_string(),
                             generated_image_b64: parts[4].trim().to_string(),
-                            timestep: parts[5].trim().parse().unwrap_or(0),
+                            creativity: parts[5].trim().parse().unwrap_or(0),
                             created_at: parts[6].trim().to_string(),
                         });
                     }

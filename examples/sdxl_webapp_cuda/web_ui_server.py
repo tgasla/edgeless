@@ -279,11 +279,25 @@ HTML_UI = """<!DOCTYPE html>
             text-overflow: ellipsis;
             white-space: nowrap;
             max-width: 70%;
+            cursor: pointer;
+        }
+
+        .history-item-prompt.expanded {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: unset;
+            word-break: break-word;
         }
 
         .history-item-time {
             font-size: 10px;
             color: #666;
+        }
+
+        .history-item-meta {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 8px;
         }
 
         .history-item-images {
@@ -292,17 +306,56 @@ HTML_UI = """<!DOCTYPE html>
         }
 
         .history-item-images img {
-            width: 80px;
-            height: 80px;
-            object-fit: cover;
+            width: 200px;
+            height: 200px;
+            object-fit: contain;
             border-radius: 4px;
             background: #333;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .history-item-images img:hover {
+            transform: scale(1.05);
         }
 
         .history-empty {
             text-align: center;
             color: #666;
             padding: 20px;
+        }
+
+        /* Fullscreen image modal */
+        #imageModal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+        }
+
+        #imageModalContent {
+            margin: auto;
+            display: block;
+            max-width: 90%;
+            max-height: 90%;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        #imageModalClose {
+            position: absolute;
+            top: 20px;
+            right: 35px;
+            color: #fff;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -333,15 +386,21 @@ HTML_UI = """<!DOCTYPE html>
         <div class="slider-container">
             <div class="slider-header">
                 <label>Creativity:</label>
-                <span class="slider-value" id="timestepValue">350</span>
+                <span class="slider-value" id="creativityValue">350</span>
             </div>
-            <input type="range" id="timestepInput" min="100" max="600" value="350">
+            <input type="range" id="creativityInput" min="100" max="600" value="350">
         </div>
 
         <button id="generateBtn">Generate Magic</button>
         <div id="loading">Processing in Edgeless Cluster...<small>This might take a few seconds</small></div>
 
         <img id="resultImage" alt="Generated Output">
+    </div>
+
+    <!-- Fullscreen image modal -->
+    <div id="imageModal">
+        <span id="imageModalClose">&times;</span>
+        <img id="imageModalContent" alt="Fullscreen">
     </div>
 
     <div class="container" id="historyPanel">
@@ -357,15 +416,41 @@ HTML_UI = """<!DOCTYPE html>
         const uploadArea = document.getElementById('uploadArea');
         const uploadText = document.getElementById('uploadText');
         const previewImage = document.getElementById('previewImage');
-        const timestepInput = document.getElementById('timestepInput');
-        const timestepValue = document.getElementById('timestepValue');
+        const creativityInput = document.getElementById('creativityInput');
+        const creativityValue = document.getElementById('creativityValue');
         const generateBtn = document.getElementById('generateBtn');
         const loading = document.getElementById('loading');
         const resultImage = document.getElementById('resultImage');
 
+        // Image modal handling
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('imageModalContent');
+        const modalClose = document.getElementById('imageModalClose');
+
+        function openImageModal(src) {
+            modal.style.display = 'block';
+            modalImg.src = src;
+        }
+
+        modalClose.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal.style.display === 'block') {
+                modal.style.display = 'none';
+            }
+        });
+
         // Update slider value display
-        timestepInput.addEventListener('input', () => {
-            timestepValue.textContent = timestepInput.value;
+        creativityInput.addEventListener('input', () => {
+            creativityValue.textContent = creativityInput.value;
         });
 
         // Handle file input click
@@ -427,7 +512,7 @@ HTML_UI = """<!DOCTYPE html>
 
                     const payload = {
                         prompt: document.getElementById('promptInput').value,
-                        timestep: parseInt(timestepInput.value),
+                        creativity: parseInt(creativityInput.value),
                         image_base64: base64String
                     };
 
@@ -459,12 +544,17 @@ HTML_UI = """<!DOCTYPE html>
         // History button handler
         const historyBtn = document.getElementById('historyBtn');
         const historyContent = document.getElementById('historyContent');
+        let displayedHistoryIds = new Set();
 
         historyBtn.addEventListener('click', async () => {
             historyBtn.disabled = true;
-            historyContent.className = 'history-loading';
-            historyContent.innerHTML = 'Loading history...';
-            historyContent.style.display = 'block';
+
+            const wasEmpty = displayedHistoryIds.size === 0;
+            if (wasEmpty) {
+                historyContent.className = 'history-loading';
+                historyContent.innerHTML = 'Loading history...';
+                historyContent.style.display = 'block';
+            }
 
             try {
                 const response = await fetch('/history', {
@@ -478,7 +568,9 @@ HTML_UI = """<!DOCTYPE html>
                 const data = await response.json();
                 displayHistory(data);
             } catch (error) {
-                historyContent.innerHTML = '<div class="history-empty">Error loading history: ' + error.message + '</div>';
+                if (displayedHistoryIds.size === 0) {
+                    historyContent.innerHTML = '<div class="history-empty">Error loading history: ' + error.message + '</div>';
+                }
             }
 
             historyBtn.disabled = false;
@@ -486,31 +578,47 @@ HTML_UI = """<!DOCTYPE html>
 
         function displayHistory(items) {
             if (!items || items.length === 0) {
-                historyContent.innerHTML = '<div class="history-empty">No history yet. Generate some images first!</div>';
+                if (displayedHistoryIds.size === 0) {
+                    historyContent.innerHTML = '<div class="history-empty">No history yet. Generate some images first!</div>';
+                }
                 return;
             }
 
-            let html = '';
-            for (const item of items) {
+            // Filter out already displayed items and prepend new ones
+            const newItems = items.filter(item => !displayedHistoryIds.has(item.id));
+            if (newItems.length === 0) {
+                return; // Nothing new to display
+            }
+
+            // Build HTML for new items (in correct order - newest first)
+            const existingHtml = historyContent.innerHTML;
+            let newHtml = '';
+
+            for (const item of newItems) {
                 const prompt = item.prompt || 'No prompt';
                 const time = item.created_at || 'Unknown time';
+                const creativity = item.creativity || item.timestep || 'N/A';
                 const sourceImg = item.source_image_b64 ? 'data:image/png;base64,' + item.source_image_b64 : '';
                 const generatedImg = item.generated_image_b64 ? 'data:image/png;base64,' + item.generated_image_b64 : '';
 
-                html += `
+                newHtml += `
                     <div class="history-item">
                         <div class="history-item-header">
-                            <p class="history-item-prompt" title="${prompt}">${prompt}</p>
+                            <p class="history-item-prompt" title="Click to expand" onclick="this.classList.toggle('expanded')">${prompt}</p>
                             <span class="history-item-time">${time}</span>
                         </div>
+                        <div class="history-item-meta">Creativity: ${creativity}</div>
                         <div class="history-item-images">
-                            ${sourceImg ? `<img src="${sourceImg}" alt="Source" title="Source Image">` : '<img alt="No source">'}
-                            ${generatedImg ? `<img src="${generatedImg}" alt="Generated" title="Generated Image">` : '<img alt="No result">'}
+                            ${sourceImg ? `<img src="${sourceImg}" alt="Source" title="Click to view" onclick="openImageModal('${sourceImg}')">` : '<img alt="No source">'}
+                            ${generatedImg ? `<img src="${generatedImg}" alt="Generated" title="Click to view" onclick="openImageModal('${generatedImg}')">` : '<img alt="No result">'}
                         </div>
                     </div>
                 `;
+                displayedHistoryIds.add(item.id);
             }
-            historyContent.innerHTML = html;
+
+            // Prepend new items to existing ones
+            historyContent.innerHTML = newHtml + existingHtml;
         }
     </script>
 </body>
