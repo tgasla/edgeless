@@ -612,13 +612,19 @@ HTML_UI = """<!DOCTYPE html>
         }
 
         function prependHistoryItem(item) {
-            // Remove "empty" message if present
+            // Remove "empty" or "loading" message if present
             const emptyMsg = historyContent.querySelector('.history-empty');
             if (emptyMsg) {
                 emptyMsg.remove();
             }
+            const loadingMsg = historyContent.querySelector('.history-loading');
+            if (loadingMsg) {
+                loadingMsg.remove();
+            }
 
-            displayedHistoryIds.add(item.id);
+            // Use session_id as the unique id for history items from DB
+            const itemId = item.id || item.session_id;
+            displayedHistoryIds.add(itemId);
             const newHtml = buildHistoryItemHtml(item);
             historyContent.insertAdjacentHTML('afterbegin', newHtml);
         }
@@ -631,8 +637,11 @@ HTML_UI = """<!DOCTYPE html>
                 return;
             }
 
-            // Filter out already displayed items
-            const newItems = items.filter(item => !displayedHistoryIds.has(item.id));
+            // Filter out already displayed items using session_id (DB items) or id (newly generated)
+            const newItems = items.filter(item => {
+                const itemId = item.id || item.session_id;
+                return !displayedHistoryIds.has(itemId);
+            });
             if (newItems.length === 0) {
                 return; // Nothing new to display
             }
