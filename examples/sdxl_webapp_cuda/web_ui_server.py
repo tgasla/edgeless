@@ -533,6 +533,8 @@ HTML_UI = """<!DOCTYPE html>
                     resultImage.src = "data:image/png;base64," + data.image_base64;
                     resultImage.style.display = 'block';
 
+                    console.log('Generation complete, session_id:', data.session_id);
+
                     // Prepend generated item to history
                     const newItem = {
                         id: data.session_id,
@@ -542,7 +544,9 @@ HTML_UI = """<!DOCTYPE html>
                         generated_image_b64: data.image_base64,
                         created_at: new Date().toLocaleString()
                     };
+                    console.log('Calling prependHistoryItem with newItem');
                     prependHistoryItem(newItem);
+                    console.log('prependHistoryItem returned, displayedHistoryIds size:', displayedHistoryIds.size);
 
                     generateBtn.disabled = false;
                     loading.style.display = 'none';
@@ -569,6 +573,8 @@ HTML_UI = """<!DOCTYPE html>
                 historyContent.style.display = 'block';
             }
 
+            console.log('Load History clicked, wasEmpty:', wasEmpty);
+
             try {
                 const response = await fetch('/history', {
                     method: 'POST',
@@ -576,11 +582,15 @@ HTML_UI = """<!DOCTYPE html>
                     body: JSON.stringify({})
                 });
 
+                console.log('Fetch response status:', response.status);
+
                 if (!response.ok) throw new Error("Server returned " + response.status);
 
                 const data = await response.json();
+                console.log('Fetch returned data, length:', Array.isArray(data) ? data.length : 'not array');
                 displayHistory(data);
             } catch (error) {
+                console.log('Fetch error:', error.message);
                 if (displayedHistoryIds.size === 0) {
                     historyContent.innerHTML = '<div class="history-empty">Error loading history: ' + error.message + '</div>';
                 }
@@ -612,24 +622,28 @@ HTML_UI = """<!DOCTYPE html>
         }
 
         function prependHistoryItem(item) {
-            // Remove "empty" or "loading" message if present
+            console.log('prependHistoryItem called, item:', item);
+            // Clear loading or empty state
+            if (historyContent.classList.contains('history-loading')) {
+                historyContent.className = '';
+                historyContent.innerHTML = '';
+            }
             const emptyMsg = historyContent.querySelector('.history-empty');
             if (emptyMsg) {
                 emptyMsg.remove();
             }
-            const loadingMsg = historyContent.querySelector('.history-loading');
-            if (loadingMsg) {
-                loadingMsg.remove();
-            }
 
             // Use session_id as the unique id for history items from DB
             const itemId = item.id || item.session_id;
+            console.log('Adding itemId to displayedHistoryIds:', itemId);
             displayedHistoryIds.add(itemId);
             const newHtml = buildHistoryItemHtml(item);
             historyContent.insertAdjacentHTML('afterbegin', newHtml);
+            console.log('History content children count:', historyContent.childNodes.length);
         }
 
         function displayHistory(items) {
+            console.log('displayHistory called, items:', items);
             if (!items || items.length === 0) {
                 if (displayedHistoryIds.size === 0) {
                     historyContent.innerHTML = '<div class="history-empty">No history yet. Generate some images first!</div>';
@@ -642,6 +656,7 @@ HTML_UI = """<!DOCTYPE html>
                 const itemId = item.id || item.session_id;
                 return !displayedHistoryIds.has(itemId);
             });
+            console.log('newItems after filter:', newItems.length);
             if (newItems.length === 0) {
                 return; // Nothing new to display
             }
