@@ -633,6 +633,9 @@ HTML_UI = """<!DOCTYPE html>
                 emptyMsg.remove();
             }
 
+            // Make sure history panel is visible when adding items
+            historyContent.style.display = 'block';
+
             // Use session_id for deduplication when available (DB items have session_id)
             // For newly generated items, session_id is in item.id
             const itemId = item.session_id || item.id;
@@ -648,6 +651,7 @@ HTML_UI = """<!DOCTYPE html>
             if (!items || items.length === 0) {
                 if (displayedHistoryIds.size === 0) {
                     historyContent.innerHTML = '<div class="history-empty">No history yet. Generate some images first!</div>';
+                    historyContent.style.display = 'block';
                 }
                 return;
             }
