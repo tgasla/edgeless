@@ -206,6 +206,23 @@ HTML_UI = """<!DOCTYPE html>
             color: #888;
         }
 
+        #historyLoading {
+            display: none;
+            text-align: center;
+            font-weight: bold;
+            color: #28a745;
+            padding: 10px;
+            background: rgba(40, 167, 69, 0.1);
+            border-radius: 6px;
+        }
+
+        #historyLoading small {
+            display: block;
+            margin-top: 5px;
+            font-weight: normal;
+            color: #888;
+        }
+
         #resultImage {
             width: 100%;
             border-radius: 8px;
@@ -237,6 +254,10 @@ HTML_UI = """<!DOCTYPE html>
             background: #218838;
         }
 
+        #historyBtn.loading {
+            background: #555;
+        }
+
         #historyContent {
             display: none;
             max-height: 400px;
@@ -244,15 +265,6 @@ HTML_UI = """<!DOCTYPE html>
             background: #2c2c2c;
             border-radius: 8px;
             padding: 10px;
-        }
-
-        #historyContent.history-loading {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            color: #888;
-            min-height: 100px;
         }
 
         .history-item {
@@ -408,6 +420,7 @@ HTML_UI = """<!DOCTYPE html>
     <div class="container" id="historyPanel">
         <h2>Generation History</h2>
         <button id="historyBtn">Load History</button>
+        <div id="historyLoading">Fetching from Edgeless Cluster...<small>This might take a few seconds</small></div>
         <div id="historyContent">
             <div class="history-empty">No history yet. Generate some images first!</div>
         </div>
@@ -536,13 +549,22 @@ HTML_UI = """<!DOCTYPE html>
                     console.log('Generation complete, session_id:', data.session_id);
 
                     // Prepend generated item to history
+                    const now = new Date();
+                    const day = String(now.getDate()).padStart(2, '0');
+                    const month = String(now.getMonth() + 1).padStart(2, '0');
+                    const year = now.getFullYear();
+                    const hours = String(now.getHours()).padStart(2, '0');
+                    const minutes = String(now.getMinutes()).padStart(2, '0');
+                    const seconds = String(now.getSeconds()).padStart(2, '0');
+                    const formattedDate = `${day}/${month}/${year}, ${hours}:${minutes}:${seconds}`;
+
                     const newItem = {
                         id: data.session_id,
                         prompt: payload.prompt,
                         creativity: payload.creativity,
                         source_image_b64: payload.image_base64,
                         generated_image_b64: data.image_base64,
-                        created_at: new Date().toLocaleString()
+                        created_at: formattedDate
                     };
                     console.log('Calling prependHistoryItem with newItem');
                     prependHistoryItem(newItem);
@@ -561,17 +583,16 @@ HTML_UI = """<!DOCTYPE html>
         // History button handler
         const historyBtn = document.getElementById('historyBtn');
         const historyContent = document.getElementById('historyContent');
+        const historyLoading = document.getElementById('historyLoading');
         let displayedHistoryIds = new Set();
 
         historyBtn.addEventListener('click', async () => {
             historyBtn.disabled = true;
+            historyBtn.classList.add('loading');
 
-            const wasEmpty = displayedHistoryIds.size === 0;
-            if (wasEmpty) {
-                historyContent.className = 'history-loading';
-                historyContent.innerHTML = 'Loading history...';
-                historyContent.style.display = 'block';
-            }
+            // Always show loading state
+            historyLoading.style.display = 'block';
+            historyContent.style.display = 'none';
 
             console.log('Load History clicked, wasEmpty:', wasEmpty);
 
@@ -588,20 +609,46 @@ HTML_UI = """<!DOCTYPE html>
 
                 const data = await response.json();
                 console.log('Fetch returned data, length:', Array.isArray(data) ? data.length : 'not array');
+
+                historyLoading.style.display = 'none';
+                historyContent.style.display = 'block';
                 displayHistory(data);
             } catch (error) {
                 console.log('Fetch error:', error.message);
+                historyLoading.style.display = 'none';
                 if (displayedHistoryIds.size === 0) {
                     historyContent.innerHTML = '<div class="history-empty">Error loading history: ' + error.message + '</div>';
+                    historyContent.style.display = 'block';
                 }
             }
 
             historyBtn.disabled = false;
+            historyBtn.classList.remove('loading');
         });
 
         function buildHistoryItemHtml(item) {
             const prompt = item.prompt || 'No prompt';
-            const time = item.created_at || 'Unknown time';
+            // Format date consistently: DD/MM/YYYY, HH:MM:SS
+            let time = 'Unknown time';
+            if (item.created_at) {
+                // Parse date in format "YYYY-MM-DD HH:MM:SS" or "DD/MM/YYYY, HH:MM:SS"
+                const parts = item.created_at.split(/[\\s,]+/);
+                if (parts.length >= 2) {
+                    let year, month, day, hours, minutes, seconds;
+                    if (parts[0].includes('-')) {
+                        // Format: YYYY-MM-DD HH:MM:SS
+                        [year, month, day] = parts[0].split('-');
+                        [hours, minutes, seconds] = parts[1].split(':');
+                    } else {
+                        // Format: DD/MM/YYYY HH:MM:SS
+                        [day, month, year] = parts[0].split('/');
+                        [hours, minutes, seconds] = parts[1].split(':');
+                    }
+                    if (year && month && day && hours && minutes && seconds) {
+                        time = `${day}/${month}/${year}, ${hours}:${minutes}:${seconds}`;
+                    }
+                }
+            }
             const creativity = item.creativity || 'N/A';
             const sourceImg = item.source_image_b64 ? 'data:image/png;base64,' + item.source_image_b64 : '';
             const generatedImg = item.generated_image_b64 ? 'data:image/png;base64,' + item.generated_image_b64 : '';
