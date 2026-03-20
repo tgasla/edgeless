@@ -11,7 +11,7 @@ struct AIEngine;
 struct WebPayload {
     id: String,
     prompt: String,
-    timestep: u32,
+    creativity: u32,
     image_base64: String,
     #[serde(rename = "source_image_b64", default)]
     source_image: Option<String>,
@@ -173,14 +173,14 @@ impl EdgeFunction for AIEngine {
             let text_embeddings = Tensor::cat(&[&emb1, &emb2], 2).expect("Failed to concat embeddings");
 
             // --- 3. DYNAMIC MATH CALCULATION ---
-            let timestep = web_payload.timestep;
+            let creativity = web_payload.creativity;
 
             // Calculate the exact SDXL noise schedule dynamically to bypass the private Scheduler API
             let mut alpha_cumprod = 1.0f64;
             let beta_start = 0.00085f64.sqrt();
             let beta_end = 0.012f64.sqrt();
 
-            for t in 0..timestep {
+            for t in 0..creativity {
                 let step_f = t as f64 / 999.0;
                 let beta = (beta_start + step_f * (beta_end - beta_start)).powi(2);
                 alpha_cumprod *= 1.0 - beta;
@@ -196,7 +196,7 @@ impl EdgeFunction for AIEngine {
 
             // --- 4. UNET INFERENCE ---
             let context = text_embeddings.to_dtype(DType::F16)?;
-            let noise_pred = state.unet.forward(&latents_noisy, timestep as f64, &context)?;
+            let noise_pred = state.unet.forward(&latents_noisy, creativity as f64, &context)?;
 
             // --- 5. RECOVER IMAGE ---
             // x_0 = (x_t - predicted_noise * noise_root) / alpha_root
@@ -230,7 +230,7 @@ impl EdgeFunction for AIEngine {
             let payload = WebPayload {
                 id: web_payload.id,
                 prompt: web_payload.prompt,
-                timestep: web_payload.timestep,
+                creativity: creativity,
                 image_base64: BASE64_STANDARD.encode(&png_bytes),
                 source_image: Some(web_payload.image_base64),
             };

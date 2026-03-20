@@ -597,7 +597,7 @@ HTML_UI = """<!DOCTYPE html>
             for (const item of newItems) {
                 const prompt = item.prompt || 'No prompt';
                 const time = item.created_at || 'Unknown time';
-                const creativity = item.creativity || item.timestep || 'N/A';
+                const creativity = item.creativity || 'N/A';
                 const sourceImg = item.source_image_b64 ? 'data:image/png;base64,' + item.source_image_b64 : '';
                 const generatedImg = item.generated_image_b64 ? 'data:image/png;base64,' + item.generated_image_b64 : '';
 
