@@ -21,3 +21,4 @@ symbols.json
 *.save
 build_functions.log
 *.db
+__pycache__/

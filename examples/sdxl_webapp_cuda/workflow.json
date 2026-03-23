@@ -64,9 +64,9 @@
             "name": "db_writer",
             "class_specification": {
                 "id": "db_writer",
-                "function_type": "RUST_ARM",
+                "function_type": "RUST_X86",
                 "version": "0.1",
-                "code": "../../functions/db_writer/db_writer_aarch.so",
+                "code": "../../functions/db_writer/db_writer_x86.so",
                 "outputs": [
                     "database"
                 ]
@@ -74,17 +74,15 @@
             "output_mapping": {
                 "database": "sqlx_db"
             },
-            "annotations": {
-                "label_match_all": "os=linux,arch=arm"
-            }
+            "annotations": {}
         },
         {
             "name": "db_reader",
             "class_specification": {
                 "id": "db_reader",
-                "function_type": "RUST_ARM",
+                "function_type": "RUST_X86",
                 "version": "0.1",
-                "code": "../../functions/db_reader/db_reader_aarch.so",
+                "code": "../../functions/db_reader/db_reader_x86.so",
                 "outputs": [
                     "database"
                 ]
@@ -92,9 +90,7 @@
             "output_mapping": {
                 "database": "sqlx_db"
             },
-            "annotations": {
-                "label_match_all": "os=linux,arch=arm"
-            }
+            "annotations": {}
         }
     ],
     "resources": [
@@ -107,18 +103,14 @@
             "configurations": {
                 "method": "POST,GET"
             },
-            "annotations": {
-                "label_match_all": "os=darwin"
-            }
+            "annotations": {}
         },
         {
             "name": "sdxl_webhook_egress",
             "class_type": "http-egress",
             "output_mapping": {},
             "configurations": {},
-            "annotations": {
-                "label_match_all": "os=darwin"
-            }
+            "annotations": {}
         },
         {
             "name": "sqlx_db",
@@ -127,9 +119,7 @@
             "configurations": {
                 "url": "sqlite://image_history.db"
             },
-            "annotations": {
-                "label_match_all": "os=linux,arch=arm"
-            }
+            "annotations": {}
         }
     ],
     "annotations": {}
