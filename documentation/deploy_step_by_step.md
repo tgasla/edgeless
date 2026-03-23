@@ -320,9 +320,9 @@ readability):
 
 ```
 Starting Edgeless Node
-Server::run; addr=127.0.0.1:7003
+Server::run; addr=127.0.0.1:7006
 Starting Edgeless Runner
-listening on http://127.0.0.1:7003
+listening on http://127.0.0.1:7006
 Creating http-ingress resource provider 'Claudios-MacBook-Pro.local-http-ingress-1' at http://127.0.0.1:7007
 Start InvocationAPI GRPC Server at http://127.0.0.1:7005
 Creating http-egress resource provider 'http-egress-1'
