@@ -222,16 +222,17 @@ impl EdgeFunction for AIEngine {
             // 6. Package and Cast
             let img_buf = image::RgbImage::from_raw(SD_WIDTH as u32, SD_HEIGHT as u32, rgb_data).ok_or("Failed to create image buffer")?;
 
-            let mut png_bytes: Vec<u8> = Vec::new();
-            let encoder = image::codecs::png::PngEncoder::new(&mut png_bytes);
+            let mut jpg_bytes: Vec<u8> = Vec::new();
+            // 90 is the quality setting (0-100). 90 is a great balance of quality and file size.
+            let encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut jpg_bytes, 90);
             image::ImageEncoder::write_image(encoder, img_buf.as_raw(), SD_WIDTH as u32, SD_HEIGHT as u32, image::ColorType::Rgb8)?;
 
             use base64::prelude::*;
             let payload = WebPayload {
                 id: web_payload.id,
                 prompt: web_payload.prompt,
-                creativity: creativity,
-                image_base64: BASE64_STANDARD.encode(&png_bytes),
+                creativity,
+                image_base64: BASE64_STANDARD.encode(&jpg_bytes),
                 source_image: Some(web_payload.image_base64),
             };
             let json_payload = serde_json::to_string(&payload)?;
