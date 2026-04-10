@@ -4,6 +4,10 @@
     "version": "0.1",
     "build": "Cargo.toml",
     "outputs": [
-        "database"
-    ]
+        "database",
+        "redis"
+    ],
+    "output_mapping": {
+        "redis": "image_history_cache"
+    }
 }

@@ -4,11 +4,12 @@ A distributed edge AI image generation application demonstrating multi-architect
 
 ## Overview
 
-This example showcases a complete AI image generation pipeline using Edgeless functions deployed across three different nodes with distinct architectures:
+This example showcases a complete AI image generation pipeline using Edgeless functions deployed across four different nodes with distinct architectures:
 
 - **Gateway Node** (MacBook Air M2 / ARM): Runs WebAssembly functions for request handling
 - **Compute Node** (MSI EdgeXpert / ARM + CUDA): Executes AI inference using NVIDIA GPU
 - **State Node** (daisone / x86): Manages persistent storage with SQLite
+- **Cache Node** (Raspberry Pi 4 / ARM): Runs Redis for 2-minute image cache
 
 ## Architecture
 
@@ -18,7 +19,7 @@ This example showcases a complete AI image generation pipeline using Edgeless fu
 
 ### Multi-Architecture Execution
 
-This example runs Edgeless functions across three different execution environments:
+This example runs Edgeless functions across four different execution environments:
 
 | Function | Type | Architecture | Node |
 |----------|------|--------------|------|
@@ -27,6 +28,7 @@ This example runs Edgeless functions across three different execution environmen
 | `sdxl_inference_b64_cuda` | Native | ARM + CUDA | Compute |
 | `db_writer` | Native | x86 | State |
 | `db_reader` | Native | x86 | State |
+| `db_reader_with_cache` | Native | ARM + Redis | Cache |
 
 ### HTTP Ingress & Egress
 
@@ -45,6 +47,15 @@ The system uses Edgeless's CAST (async) and CALL (sync) primitives:
 - CAST for fire-and-forget processing (AI inference, database writes)
 - CALL for request-response patterns (webhooks)
 
+### Redis Cache Strategy
+
+The Raspberry Pi 4 Cache Node runs Redis to provide a 2-minute TTL cache for frequently accessed images:
+
+- **2-Minute TTL**: Cached images expire after 120 seconds, ensuring relatively fresh data while reducing load on the database
+- **Cache-Aside Pattern**: When loading history, the system first checks Redis for cached entries. On a cache miss, it falls back to the SQLite database and populates the cache
+- **Write-Through**: When new images are generated, `db_writer` writes to SQLite and simultaneously updates/invalidates the Redis cache entry, ensuring cache consistency
+- **Performance Benefit**: Repeated history loads (e.g., users frequently refreshing the web UI) are served from Redis, significantly reducing database load and latency
+
 ## Components
 
 ### Python Web UI Server (`web_ui_server.py`)
@@ -57,9 +68,10 @@ A standalone Python HTTP server (Port 8080) providing:
 ### Workflow Configuration (`workflow.json`)
 
 Defines the Edgeless cluster topology with:
-- Five functions across three nodes
+- Six functions across four nodes
 - HTTP ingress/egress resources
 - SQLx database resource
+- Redis cache resource
 
 ## TOML files used
 1. MacBook node
@@ -306,6 +318,81 @@ Defines the Edgeless cluster topology with:
    > [!NOTE]
    > We changed the default `agent_url`, `agent_url_announced`, `invocation_url`, and `invocation_url_announced` ports on the remote nodes to avoid collisions over our SSH tunnels. The MSI EdgeXpert now uses ports 7008/7009, and the daisone node uses 7010/7011 (instead of the default 7004/7005). Because all nodes are connected via local port forwarding, keeping the default ports would cause the remote SSH tunnels to conflict with the node's own local Edgeless node. Assigning distinct ports ensures traffic routes correctly to the intended node.
 
+4. Raspberry Pi 4 node
+
+    a. `node.toml`
+    ```
+    [general]
+    node_id = "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    agent_url = "http://127.0.0.1:7012"
+    agent_url_announced = "http://127.0.0.1:7012"
+    invocation_url = "http://127.0.0.1:7013"
+    invocation_url_announced = "http://127.0.0.1:7013"
+    node_register_url = "http://127.0.0.1:7003"
+    subscription_refresh_interval_sec = 2
+
+    [telemetry]
+    metrics_url = "http://127.0.0.1:7006"
+    performance_samples = false
+
+    [wasm_runtime]
+    enabled = true
+
+    [container_runtime]
+    enabled = false
+    guest_api_host_url = "http://127.0.0.1:7100"
+
+    [native_runtime]
+    enabled = true
+
+    [resources]
+    prepend_hostname = true
+    http_ingress_url = ""
+    http_ingress_provider = ""
+    http_egress_provider = ""
+    http_poster_provider = ""
+    file_log_provider = ""
+    redis_provider = "redis-1"
+    dda_provider = ""
+    kafka_egress_provider = ""
+    sqlx_provider = ""
+
+    [resources.file_pusher_provider]
+    directory = ""
+    provider = ""
+
+    [resources.ollama_provider]
+    host = "localhost"
+    port = 11434
+    messages_number_limit = 30
+    provider = ""
+
+    [[resources.serverless_provider]]
+    class_type = ""
+    version = ""
+    function_url = ""
+    provider = ""
+
+    [user_node_capabilities]
+    num_cpus = 4
+    model_name_cpu = "ARM Cortex-A72"
+    clock_freq_cpu = 1500.0
+    num_cores = 4
+    mem_size = 4096
+    labels = ["hostname=rpi4-cache","os=linux","arch=arm","node=raspberry"]
+    is_tee_running = false
+    has_tpm = false
+    disk_tot_space = 32000
+    num_gpus = 0
+    model_name_gpu = ""
+    mem_size_gpu = 0
+    ```
+
+    b. `cli.toml`
+    ```
+    controller_url = "http://127.0.0.1:7001"
+    ```
+
 ## Running the Example
 
 1. **Build the project in all nodes:**
@@ -340,6 +427,7 @@ Defines the Edgeless cluster topology with:
     cd functions/sdxl_inference_b64_cuda && cargo build && mv target/debug/libsdxl_inference_b64_cuda.so sdxl_inference_b64_cuda_aarch.so && rm -r target
     target/debug/edgeless_cli function build functions/db_writer/function.json --architecture x86
     target/debug/edgeless_cli function build functions/db_reader/function.json --architecture x86
+    target/debug/edgeless_cli function build functions/db_reader_with_cache/function.json
     ```
 
 7. **Start the Python web UI (in the MacBook node):**
@@ -362,21 +450,31 @@ Defines the Edgeless cluster topology with:
     RUST_LOG=info target/debug/edgeless_node_d
     ```
 
-11. **Set up the SSH tunnels for the three nodes (only required if the three machines have not direct network access to each other or firewall does not allow external traffic to custom ports, but SSH is allowed):**
+11. **Set up the SSH tunnels for the four nodes (only required if the four machines have not direct network access to each other or firewall does not allow external traffic to custom ports, but SSH is allowed):**
 
     a. On the MacBook node, set up the MSI EdgeXpert SSH tunnels (requires configuration of rats in ~/.ssh/config):
     ```bash
     ssh -R 7003:127.0.0.1:7003 -R 7001:127.0.0.1:7001 -L 7008:127.0.0.1:7008 -L 7009:127.0.0.1:7009 -R 7004:127.0.0.1:7004 -R 7005:127.0.0.1:7005 -R 7000:127.0.0.1:7000 -N rats
     ```
-    
+
     b. On the MacBook node, set up the daisone SSH tunnels (requires configuration of d1 in ~/.ssh/config):
     ```bash
     ssh -R 7003:127.0.0.1:7003 -R 7001:127.0.0.1:7001 -L 7010:127.0.0.1:7010 -L 7011:127.0.0.1:7011 -R 7004:127.0.0.1:7004 -R 7005:127.0.0.1:7005 -R 7000:127.0.0.1:7000 -N d1
     ```
-    
-    c. On the MSI EdgeXpert node, set up the daisone SSH tunnels (requires configuration of d1 in ~/.ssh/config):
+
+    c. On the MacBook node, set up the RPi4 SSH tunnels (requires configuration of rpi4 in ~/.ssh/config):
+    ```bash
+    ssh -R 7003:127.0.0.1:7003 -R 7001:127.0.0.1:7001 -L 7012:127.0.0.1:7012 -L 7013:127.0.0.1:7013 -R 7004:127.0.0.1:7004 -R 7005:127.0.0.1:7005 -R 7000:127.0.0.1:7000 -N rpi4
+    ```
+
+    d. On the MSI EdgeXpert node, set up the daisone SSH tunnels (requires configuration of d1 in ~/.ssh/config):
     ```bash
     ssh -L 7010:127.0.0.1:7010 -L 7011:127.0.0.1:7011 -R 7008:127.0.0.1:7008 -R 7009:127.0.0.1:7009 -N d1
+    ```
+
+    e. On the MSI EdgeXpert node, set up the RPi4 SSH tunnels (requires configuration of rpi4 in ~/.ssh/config):
+    ```bash
+    ssh -L 7012:127.0.0.1:7012 -L 7013:127.0.0.1:7013 -R 7008:127.0.0.1:7008 -R 7009:127.0.0.1:7009 -N rpi4
     ```
 
 12. **Start the Edgeless node (in the MSI EdgeXpert node):**
@@ -389,12 +487,17 @@ Defines the Edgeless cluster topology with:
     RUST_LOG=info target/debug/edgeless_node_d
     ```
 
-14. **Start the workflow (in the MSI EdgeXpert node):**
+14. **Start the Edgeless node (in the RPi4 node):**
+    ```bash
+    RUST_LOG=info target/debug/edgeless_node_d
+    ```
+
+15. **Start the workflow (in the MSI EdgeXpert node):**
     ```bash
     target/debug/edgeless_cli workflow start examples/sdxl_webapp_cuda/workflow.json
     ```
 
-15. **Open browser to `http://localhost:8080` (in MacBook node)**:
+16. **Open browser to `http://localhost:8080` (in MacBook node)**:
 
 ## API Endpoints
 

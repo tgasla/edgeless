@@ -72,6 +72,15 @@ impl EdgeFunction for DbWriter {
                 );
                 if let Some(_result) = call_wrapper(&sql) {
                     log::info!("db_writer: saved successfully");
+                    // Update Redis cache with fresh history data
+                    if let Some(history_data) = call_wrapper("SELECT id, session_id, source_image_b64, prompt, generated_image_b64, creativity, created_at FROM image_history ORDER BY id DESC LIMIT 20") {
+                        if let Ok(history_json) = serde_json::from_slice::<Vec<serde_json::Value>>(&history_data) {
+                            if let Ok(json_str) = serde_json::to_string(&history_json) {
+                                cast("redis", json_str.as_bytes());
+                                log::info!("db_writer: updated redis cache with latest history");
+                            }
+                        }
+                    }
                 }
             } else {
                 log::error!("db_writer: failed to parse save request: {}", json_str);

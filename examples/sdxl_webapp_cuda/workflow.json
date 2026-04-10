@@ -9,12 +9,12 @@
                 "code": "../../functions/sdxl_web_receiver/sdxl_web_receiver.wasm",
                 "outputs": [
                     "ai_channel",
-                    "db_reader"
+                    "db_reader_with_cache"
                 ]
             },
             "output_mapping": {
                 "ai_channel": "sdxl_inference_b64_cuda",
-                "db_reader": "db_reader"
+                "db_reader_with_cache": "db_reader_with_cache"
             },
             "annotations": {
                 "label_match_all": "os=darwin"
@@ -68,29 +68,35 @@
                 "version": "0.1",
                 "code": "../../functions/db_writer/db_writer_x86.so",
                 "outputs": [
-                    "database"
+                    "database",
+                    "redis"
                 ]
             },
             "output_mapping": {
-                "database": "sqlx_db"
+                "database": "sqlx_db",
+                "redis": "redis_cache"
             },
             "annotations": {}
         },
         {
-            "name": "db_reader",
+            "name": "db_reader_with_cache",
             "class_specification": {
-                "id": "db_reader",
-                "function_type": "RUST_X86",
+                "id": "db_reader_with_cache",
+                "function_type": "RUST_ARM",
                 "version": "0.1",
-                "code": "../../functions/db_reader/db_reader_x86.so",
+                "code": "../../functions/db_reader_with_cache/db_reader_with_cache_aarch.so",
                 "outputs": [
-                    "database"
+                    "database",
+                    "redis"
                 ]
             },
             "output_mapping": {
-                "database": "sqlx_db"
+                "database": "sqlx_db",
+                "redis": "redis_cache"
             },
-            "annotations": {}
+            "annotations": {
+                "label_match_all": "node=raspberry"
+            }
         }
     ],
     "resources": [
@@ -118,6 +124,16 @@
             "output_mapping": {},
             "configurations": {
                 "url": "sqlite://image_history.db"
+            },
+            "annotations": {}
+        },
+        {
+            "name": "redis_cache",
+            "class_type": "redis",
+            "output_mapping": {},
+            "configurations": {
+                "url": "redis://192.168.1.100:6379/",
+                "key": "image_history"
             },
             "annotations": {}
         }
