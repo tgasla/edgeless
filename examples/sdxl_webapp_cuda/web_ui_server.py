@@ -616,27 +616,16 @@ HTML_UI = """<!DOCTYPE html>
                 const data = await response.json();
                 console.log('Fetch returned data:', JSON.stringify(data).substring(0, 500));
 
-                // DEBUG: Log the structure
-                console.log('data type:', typeof data, Array.isArray(data));
-                console.log('data.source:', data.source);
-                console.log('data.data:', data.data);
-
                 // Check if response has new format with source field
                 let source = 'unknown';
                 let items = data;
-                console.log('Processing response - timestamp:', new Date().toISOString(), 'data.source:', data.source);
                 if (data.source && Array.isArray(data.data)) {
-                    // Only update if message hasn't been set yet (prevent flickering)
-                    if (historyLoading.innerHTML.indexOf('Served from') === -1 && historyLoading.innerHTML.indexOf('Fetched from') === -1) {
-                        source = data.source;
-                        items = data.data;
-                        // Update the loading message to show source (stays visible)
-                        historyLoading.innerHTML = source === 'cache'
-                            ? 'Served from Redis cache (2 min TTL)<small>Data retrieved successfully</small>'
-                            : 'Fetched from database<small>Cache miss - data retrieved from database</small>';
-                    } else {
-                        items = data.data;
-                    }
+                    source = data.source;
+                    items = data.data;
+                    // Update the loading message to show source (stays visible)
+                    historyLoading.innerHTML = source === 'cache'
+                        ? 'Served from Redis cache (2 min TTL)<small>Data retrieved successfully</small>'
+                        : 'Fetched from database<small>Cache miss - data retrieved from database</small>';
                 } else {
                     historyLoading.style.display = 'none';
                 }
