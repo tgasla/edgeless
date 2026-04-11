@@ -29,11 +29,11 @@ impl EdgeFunction for SdxlWebReceiver {
 
         // Check if this is a history request (path /history)
         if req.path == "/history" {
-            log::info!("WebReceiver: Received history request, calling db_reader");
-            // Use call (synchronous) to get history from db_reader
-            match call("db_reader", b"GET_HISTORY") {
+            log::info!("WebReceiver: Received history request, calling db_reader_with_cache");
+            // Use call (synchronous) to get history from db_reader_with_cache (with Redis cache)
+            match call("db_reader_with_cache", b"GET_HISTORY") {
                 CallRet::Reply(data) => {
-                    log::info!("WebReceiver: Got history data from db_reader");
+                    log::info!("WebReceiver: Got history data from db_reader_with_cache");
                     let history_response = EdgelessHTTPResponse {
                         status: 200,
                         body: Some(data.to_vec()),
@@ -42,7 +42,7 @@ impl EdgeFunction for SdxlWebReceiver {
                     return CallRet::Reply(OwnedByteBuff::new_from_slice(response_to_string(&history_response).as_bytes()));
                 }
                 CallRet::NoReply => {
-                    log::warn!("WebReceiver: db_reader returned no reply");
+                    log::warn!("WebReceiver: db_reader_with_cache returned no reply");
                     let err_response = EdgelessHTTPResponse {
                         status: 500,
                         body: Some(b"Database error".to_vec()),
@@ -51,7 +51,7 @@ impl EdgeFunction for SdxlWebReceiver {
                     return CallRet::Reply(OwnedByteBuff::new_from_slice(response_to_string(&err_response).as_bytes()));
                 }
                 CallRet::Err => {
-                    log::error!("WebReceiver: db_reader returned error");
+                    log::error!("WebReceiver: db_reader_with_cache returned error");
                     let err_response = EdgelessHTTPResponse {
                         status: 500,
                         body: Some(b"Database error".to_vec()),

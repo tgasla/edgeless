@@ -452,6 +452,8 @@ Defines the Edgeless cluster topology with:
 
 11. **Set up the SSH tunnels for the four nodes (only required if the four machines have not direct network access to each other or firewall does not allow external traffic to custom ports, but SSH is allowed):**
 
+   First connect the MacBook in the cl VPN if it is outside of the cl network otherwise ssh is not possible for internal cl or sm cl nodes
+
     a. On the MacBook node, set up the MSI EdgeXpert SSH tunnels (requires configuration of rats in ~/.ssh/config):
     ```bash
     ssh -R 7003:127.0.0.1:7003 -R 7001:127.0.0.1:7001 -L 7008:127.0.0.1:7008 -L 7009:127.0.0.1:7009 -R 7004:127.0.0.1:7004 -R 7005:127.0.0.1:7005 -R 7000:127.0.0.1:7000 -N rats
@@ -462,20 +464,28 @@ Defines the Edgeless cluster topology with:
     ssh -R 7003:127.0.0.1:7003 -R 7001:127.0.0.1:7001 -L 7010:127.0.0.1:7010 -L 7011:127.0.0.1:7011 -R 7004:127.0.0.1:7004 -R 7005:127.0.0.1:7005 -R 7000:127.0.0.1:7000 -N d1
     ```
 
-    c. On the MacBook node, set up the RPi4 SSH tunnels (requires configuration of rpi4 in ~/.ssh/config):
+    c. On the MacBook node, set up the RPi SSH tunnels (requires configuration of rpi in ~/.ssh/config):
     ```bash
-    ssh -R 7003:127.0.0.1:7003 -R 7001:127.0.0.1:7001 -L 7012:127.0.0.1:7012 -L 7013:127.0.0.1:7013 -R 7004:127.0.0.1:7004 -R 7005:127.0.0.1:7005 -R 7000:127.0.0.1:7000 -N rpi4
+    ssh -R 7003:127.0.0.1:7003 -R 7001:127.0.0.1:7001 -L 7012:127.0.0.1:7012 -L 7013:127.0.0.1:7013 -R 7004:127.0.0.1:7004 -R 7005:127.0.0.1:7005 -R 7000:127.0.0.1:7000 -N rpi
     ```
 
-    d. On the MSI EdgeXpert node, set up the daisone SSH tunnels (requires configuration of d1 in ~/.ssh/config):
+    d. On the MSI EdgeXpert node, set up the d1 SSH tunnels (requires configuration of d1 in ~/.ssh/config):
     ```bash
     ssh -L 7010:127.0.0.1:7010 -L 7011:127.0.0.1:7011 -R 7008:127.0.0.1:7008 -R 7009:127.0.0.1:7009 -N d1
     ```
 
-    e. On the MSI EdgeXpert node, set up the RPi4 SSH tunnels (requires configuration of rpi4 in ~/.ssh/config):
+    e. On the MSI EdgeXpert node, set up the RPi SSH tunnels (requires configuration of rpi in ~/.ssh/config):
     ```bash
-    ssh -L 7012:127.0.0.1:7012 -L 7013:127.0.0.1:7013 -R 7008:127.0.0.1:7008 -R 7009:127.0.0.1:7009 -N rpi4
+    ssh -L 7012:127.0.0.1:7012 -L 7013:127.0.0.1:7013 -R 7008:127.0.0.1:7008 -R 7009:127.0.0.1:7009 -N rpi
     ```
+
+    f. On the RPi node, set up the d1 SSH tunnels (requires configuration of d1 in ~/.ssh/config):
+    ```bash
+    ssh -L 7010:127.0.0.1:7010 -L 7011:127.0.0.1:7011 -R 7012:127.0.0.1:7012 -R 7013:127.0.0.1:7013 -R 6379:127.0.0.1:6379 -N d1
+    ```
+
+    For f. we do not do the opposite because the RPi node is not reachable from d1 (unless d1 is connected to the cl vpn)
+    But, d1 is ssh-able from all nodes
 
 12. **Start the Edgeless node (in the MSI EdgeXpert node):**
     ```bash

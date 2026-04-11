@@ -37,7 +37,7 @@
                 "db_channel": "db_writer"
             },
             "annotations": {
-                "label_match_all": "os=linux,arch=arm"
+                "label_match_all": "hostname=edgexpert-95b2"
             }
         },
         {
@@ -95,7 +95,7 @@
                 "redis": "redis_cache"
             },
             "annotations": {
-                "label_match_all": "node=raspberry"
+                "label_match_all": "hostname=edgeless-rpi"
             }
         }
     ],
@@ -132,7 +132,7 @@
             "class_type": "redis",
             "output_mapping": {},
             "configurations": {
-                "url": "redis://192.168.1.100:6379/",
+                "url": "redis://127.0.0.1:6379/",
                 "key": "image_history"
             },
             "annotations": {}
