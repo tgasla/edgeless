@@ -6,7 +6,7 @@ use edgeless_function::owned_data::OwnedByteBuff;
 const CACHE_KEY: &str = "image_history";
 const CACHE_TTL_SECONDS: u64 = 120;
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Clone)]
 struct HistoryEntry {
     id: Option<i64>,
     session_id: String,
@@ -21,6 +21,12 @@ struct HistoryEntry {
 struct CachedData {
     entries: Vec<HistoryEntry>,
     cached_at: u64,
+}
+
+#[derive(serde::Serialize)]
+struct HistoryResponse<'a> {
+    source: &'a str,
+    data: Vec<HistoryEntry>,
 }
 
 fn call_database(msg: &str) -> Option<String> {
@@ -77,7 +83,7 @@ fn call_redis_set(value: &str) {
     log::info!("db_reader_with_cache: cache set via cast");
 }
 
-fn query_db_and_build_json() -> String {
+fn query_db_and_build_entries() -> Vec<HistoryEntry> {
     // Fetch metadata + images for first 3 entries (most recent), metadata only for rest
     // This keeps the response small enough while still showing images in history
     let query_meta = "SELECT id, session_id, prompt, creativity, created_at FROM image_history ORDER BY id DESC LIMIT 20";
@@ -125,10 +131,10 @@ fn query_db_and_build_json() -> String {
             }
         }
 
-        serde_json::to_string(&entries).unwrap_or_else(|_| "[]".to_string())
+        entries
     } else {
         log::warn!("db_reader_with_cache: query returned no result");
-        "[]".to_string()
+        Vec::new()
     }
 }
 
@@ -164,8 +170,12 @@ impl EdgeFunction for DbReaderWithCache {
                         .unwrap_or(0);
 
                     if is_cache_valid(&cached_data, now) {
-                        let json = serde_json::to_string(&cached_data.entries).unwrap_or_else(|_| "[]".to_string());
-                        log::info!("db_reader_with_cache: cache hit, returning {} bytes", json.len());
+                        log::info!("db_reader_with_cache: cache hit, returning {} entries", cached_data.entries.len());
+                        let response = HistoryResponse {
+                            source: "cache",
+                            data: cached_data.entries,
+                        };
+                        let json = serde_json::to_string(&response).unwrap_or_else(|_| r#"{"source":"error","data":[]}"#.to_string());
                         return CallRet::Reply(OwnedByteBuff::new_from_slice(json.as_bytes()));
                     } else {
                         log::info!("db_reader_with_cache: cache expired");
@@ -178,12 +188,12 @@ impl EdgeFunction for DbReaderWithCache {
             }
 
             // Step 2: Cache miss or expired - query database
-            let json = query_db_and_build_json();
-            log::info!("db_reader_with_cache: DB returned {} bytes of history data", json.len());
+            let entries = query_db_and_build_entries();
+            log::info!("db_reader_with_cache: DB returned {} entries", entries.len());
 
             // Step 3: Update Redis cache with result
             let cache_value = CachedData {
-                entries: serde_json::from_str(&json).unwrap_or_default(),
+                entries: entries.clone(),
                 cached_at: std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .map(|d| d.as_secs())
@@ -194,6 +204,11 @@ impl EdgeFunction for DbReaderWithCache {
                 call_redis_set(&cache_json);
             }
 
+            let response = HistoryResponse {
+                source: "database",
+                data: entries,
+            };
+            let json = serde_json::to_string(&response).unwrap_or_else(|_| r#"{"source":"error","data":[]}"#.to_string());
             return CallRet::Reply(OwnedByteBuff::new_from_slice(json.as_bytes()));
         }
 

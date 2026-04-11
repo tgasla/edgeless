@@ -616,9 +616,30 @@ HTML_UI = """<!DOCTYPE html>
                 const data = await response.json();
                 console.log('Fetch returned data:', JSON.stringify(data).substring(0, 500));
 
-                historyLoading.style.display = 'none';
+                // DEBUG: Log the structure
+                console.log('data type:', typeof data, Array.isArray(data));
+                console.log('data.source:', data.source);
+                console.log('data.data:', data.data);
+
+                // Check if response has new format with source field
+                let source = 'unknown';
+                let items = data;
+                if (data.source && Array.isArray(data.data)) {
+                    source = data.source;
+                    items = data.data;
+                    // Update the loading message to show source
+                    historyLoading.innerHTML = source === 'cache'
+                        ? 'Served from Redis cache (2 min TTL)<small>Data retrieved successfully</small>'
+                        : 'Fetched from database<small>Cache miss - data retrieved from database</small>';
+                    setTimeout(() => {
+                        historyLoading.style.display = 'none';
+                    }, 2000);
+                } else {
+                    historyLoading.style.display = 'none';
+                }
+
                 historyContent.style.display = 'block';
-                displayHistory(data);
+                displayHistory(items);
             } catch (error) {
                 console.log('Fetch error:', error.message);
                 historyLoading.style.display = 'none';
