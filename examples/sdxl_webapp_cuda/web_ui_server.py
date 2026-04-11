@@ -624,16 +624,19 @@ HTML_UI = """<!DOCTYPE html>
                 // Check if response has new format with source field
                 let source = 'unknown';
                 let items = data;
+                console.log('Processing response - timestamp:', new Date().toISOString(), 'data.source:', data.source);
                 if (data.source && Array.isArray(data.data)) {
-                    source = data.source;
-                    items = data.data;
-                    // Update the loading message to show source
-                    historyLoading.innerHTML = source === 'cache'
-                        ? 'Served from Redis cache (2 min TTL)<small>Data retrieved successfully</small>'
-                        : 'Fetched from database<small>Cache miss - data retrieved from database</small>';
-                    setTimeout(() => {
-                        historyLoading.style.display = 'none';
-                    }, 2000);
+                    // Only update if message hasn't been set yet (prevent flickering)
+                    if (historyLoading.innerHTML.indexOf('Served from') === -1 && historyLoading.innerHTML.indexOf('Fetched from') === -1) {
+                        source = data.source;
+                        items = data.data;
+                        // Update the loading message to show source (stays visible)
+                        historyLoading.innerHTML = source === 'cache'
+                            ? 'Served from Redis cache (2 min TTL)<small>Data retrieved successfully</small>'
+                            : 'Fetched from database<small>Cache miss - data retrieved from database</small>';
+                    } else {
+                        items = data.data;
+                    }
                 } else {
                     historyLoading.style.display = 'none';
                 }
