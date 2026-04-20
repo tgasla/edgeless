@@ -427,7 +427,7 @@ Defines the Edgeless cluster topology with:
     cd functions/sdxl_inference_b64_cuda && cargo build && mv target/debug/libsdxl_inference_b64_cuda.so sdxl_inference_b64_cuda_aarch.so && rm -r target
     target/debug/edgeless_cli function build functions/db_writer/function.json --architecture x86
     target/debug/edgeless_cli function build functions/db_reader/function.json --architecture x86
-    target/debug/edgeless_cli function build functions/db_reader_with_cache/function.json
+    target/debug/edgeless_cli function build functions/db_reader_with_cache/function.json --architecture arm
     ```
 
 7. **Start the Python web UI (in the MacBook node):**
@@ -517,6 +517,12 @@ Defines the Edgeless cluster topology with:
 | `/generate` | POST | Generate image (body: `{prompt, creativity, image_base64}`)
 | `/webhook` | POST | Edgeless callback endpoint |
 | `/history` | GET | Retrieve generation history |
+
+## Cleanup
+
+- On the controller node: `rm controller.save`
+- On the database node: `rm image_history.db`
+- On the redis node: `redis-cli DEL image_history`
 
 ## Edgeless Functionalities Demonstrated
 This workflow serves as a comprehensive example of the Edgeless framework, showcasing:

@@ -16,9 +16,25 @@
                 "ai_channel": "sdxl_inference_b64_cuda",
                 "db_reader_with_cache": "db_reader_with_cache"
             },
-            "annotations": {
-                "label_match_all": "os=darwin"
-            }
+            "annotations": {}
+        },
+        {
+            "name": "sdxl_web_sender",
+            "class_specification": {
+                "id": "sdxl_web_sender",
+                "function_type": "RUST_WASM",
+                "version": "0.1",
+                "code": "../../functions/sdxl_web_sender/sdxl_web_sender.wasm",
+                "outputs": [
+                    "http_out",
+                    "db_writer"
+                ]
+            },
+            "output_mapping": {
+                "http_out": "sdxl_webhook_egress",
+                "db_writer": "db_writer"
+            },
+            "annotations": {}
         },
         {
             "name": "sdxl_inference_b64_cuda",
@@ -38,26 +54,6 @@
             },
             "annotations": {
                 "label_match_all": "hostname=edgexpert-95b2"
-            }
-        },
-        {
-            "name": "sdxl_web_sender",
-            "class_specification": {
-                "id": "sdxl_web_sender",
-                "function_type": "RUST_WASM",
-                "version": "0.1",
-                "code": "../../functions/sdxl_web_sender/sdxl_web_sender.wasm",
-                "outputs": [
-                    "http_out",
-                    "db_writer"
-                ]
-            },
-            "output_mapping": {
-                "http_out": "sdxl_webhook_egress",
-                "db_writer": "db_writer"
-            },
-            "annotations": {
-                "label_match_all": "os=darwin"
             }
         },
         {
